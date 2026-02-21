@@ -1,0 +1,21 @@
+{
+	"name": "local-proxy",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "bun run --watch src/index.ts",
+		"start": "bun run src/index.ts",
+		"lint": "bunx biome check --write .",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"dockerode": "^4.0.7",
+		"yaml": "^2.7.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@types/bun": "^1.3.9",
+		"@types/dockerode": "^3.3.38",
+		"typescript": "^5.8.3"
+	}
+}
