@@ -4,18 +4,18 @@
 	"type": "module",
 	"scripts": {
 		"dev": "bun run --watch src/index.ts",
-		"start": "bun run src/index.ts",
+		"start": "./scripts/start.sh",
 		"lint": "bunx biome check --write .",
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"dockerode": "^4.0.7",
-		"yaml": "^2.7.1"
+		"dockerode": "^4.0.9",
+		"yaml": "^2.8.2"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.4",
+		"@biomejs/biome": "^2.4.4",
 		"@types/bun": "^1.3.9",
-		"@types/dockerode": "^3.3.38",
-		"typescript": "^5.8.3"
+		"@types/dockerode": "^4.0.1",
+		"typescript": "^5.9.3"
 	}
 }

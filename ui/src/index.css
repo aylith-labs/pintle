@@ -1,0 +1,46 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+@theme {
+	--font-mono: "SF Mono", Monaco, "Cascadia Code", "Consolas", monospace;
+	--color-indigo-accent: #6366f1;
+}
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: var(--font-mono);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* React Flow overrides for dark mode */
+.dark .react-flow__background {
+	--xy-background-color: #09090b;
+}
+
+.dark .react-flow__minimap {
+	background-color: #18181b;
+}
+
+/* Animated edge dashes */
+@keyframes flow-dash {
+	to {
+		stroke-dashoffset: -20;
+	}
+}
+
+.react-flow__edge-path.animated-edge {
+	stroke-dasharray: 5 5;
+	animation: flow-dash 1s linear infinite;
+}
+
+/* Glass morphism utility */
+.glass {
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+}

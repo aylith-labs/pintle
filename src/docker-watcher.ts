@@ -7,6 +7,7 @@ const docker = new Docker();
 let currentRoutes: Route[] = [];
 let onChange: (() => void) | null = null;
 let rebuildTimer: ReturnType<typeof setTimeout> | null = null;
+let traefikIp: string | null = null;
 
 const NETWORK_NAME = process.env.DOCKER_NETWORK ?? "traefik";
 
@@ -80,6 +81,7 @@ function scheduleRebuild(): void {
 	rebuildTimer = setTimeout(async () => {
 		try {
 			currentRoutes = await discoverRoutes();
+			await discoverTraefik();
 			onChange?.();
 		} catch (err) {
 			log.error("Failed to rebuild Docker routes", err);
@@ -91,12 +93,44 @@ export function getDockerRoutes(): Route[] {
 	return currentRoutes;
 }
 
+export function getTraefikTarget(): { host: string; port: number } | null {
+	if (!traefikIp) return null;
+	return { host: traefikIp, port: 443 };
+}
+
+async function discoverTraefik(): Promise<void> {
+	try {
+		const containers = await docker.listContainers();
+		for (const c of containers) {
+			if (c.Image.includes("traefik")) {
+				const networks = c.NetworkSettings?.Networks ?? {};
+				const networkInfo = networks[NETWORK_NAME];
+				if (networkInfo?.IPAddress) {
+					const oldIp = traefikIp;
+					traefikIp = networkInfo.IPAddress;
+					if (oldIp !== traefikIp) {
+						log.info(`Traefik container IP: ${traefikIp} (network '${NETWORK_NAME}')`);
+					}
+					return;
+				}
+			}
+		}
+		if (traefikIp) {
+			log.info("Traefik container not found, clearing cached IP");
+			traefikIp = null;
+		}
+	} catch {
+		// Docker query failed, keep existing cached IP
+	}
+}
+
 export async function initDockerWatcher(onUpdate: () => void): Promise<void> {
 	onChange = onUpdate;
 
 	// Initial discovery
 	try {
 		currentRoutes = await discoverRoutes();
+		await discoverTraefik();
 		log.info(`Discovered ${currentRoutes.length} Docker route(s) on network '${NETWORK_NAME}'`);
 	} catch (err) {
 		log.error("Failed initial Docker discovery", err);

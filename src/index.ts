@@ -1,13 +1,16 @@
 import { resolve as resolvePath } from "node:path";
 import type { ServerWebSocket } from "bun";
-import { getDockerRoutes, initDockerWatcher } from "./docker-watcher";
+import { handleApiRequest } from "./api";
+import { getDockerRoutes, getTraefikTarget, initDockerWatcher } from "./docker-watcher";
 import * as log from "./logger";
 import { handleRequest } from "./proxy";
 import { resolve, updateRoutes } from "./router";
+import { startSniRouter } from "./sni-router";
 import { getStaticRoutes, initStaticRoutes } from "./static-routes";
 
-const HTTPS_PORT = Number.parseInt(process.env.HTTPS_PORT ?? "443", 10);
-const HTTP_PORT = Number.parseInt(process.env.HTTP_PORT ?? "80", 10);
+const LISTEN_PORT = Number.parseInt(process.env.LISTEN_PORT ?? "9443", 10);
+const INTERNAL_HTTPS_PORT = 9444; // Bun HTTPS server (internal, SNI router forwards here)
+const HTTP_PORT = Number.parseInt(process.env.HTTP_PORT ?? "9080", 10);
 const CERT_PATH = resolvePath(import.meta.dir, "../certs/lvh.me.pem");
 const KEY_PATH = resolvePath(import.meta.dir, "../certs/lvh.me-key.pem");
 const ROUTES_FILE = resolvePath(import.meta.dir, "../routes.yaml");
@@ -22,16 +25,32 @@ function rebuildAllRoutes(): void {
 // WebSocket proxy: pipe between client and upstream
 const wsUpstreams = new Map<ServerWebSocket<WsData>, WebSocket>();
 
+// Internal Bun HTTPS server (receives connections from SNI router for *.lvh.me)
 const httpsServer = Bun.serve<WsData>({
-	port: HTTPS_PORT,
+	port: INTERNAL_HTTPS_PORT,
+	hostname: "127.0.0.1",
 	tls: {
 		cert: Bun.file(CERT_PATH),
 		key: Bun.file(KEY_PATH),
 	},
 	async fetch(req, server) {
+		const hostname = (req.headers.get("host") ?? "").split(":")[0];
+
+		// Dashboard API + UI at proxy.lvh.me
+		if (hostname === "proxy.lvh.me") {
+			// Proxy Vite HMR WebSocket
+			if (req.headers.get("upgrade")?.toLowerCase() === "websocket") {
+				const url = new URL(req.url);
+				const targetUrl = `ws://localhost:5175${url.pathname}${url.search}`;
+				const upgraded = server.upgrade(req, { data: { targetUrl, hostname } });
+				if (upgraded) return undefined;
+				return new Response("WebSocket upgrade failed", { status: 400 });
+			}
+			return handleApiRequest(req);
+		}
+
 		// Handle WebSocket upgrade
 		if (req.headers.get("upgrade")?.toLowerCase() === "websocket") {
-			const hostname = (req.headers.get("host") ?? "").split(":")[0];
 			const url = new URL(req.url);
 			const match = resolve(hostname, url.pathname);
 
@@ -87,24 +106,35 @@ const httpsServer = Bun.serve<WsData>({
 });
 
 // HTTP -> HTTPS redirect
-const httpServer = Bun.serve({
+Bun.serve({
 	port: HTTP_PORT,
 	fetch(req) {
 		const url = new URL(req.url);
 		url.protocol = "https:";
-		if (HTTPS_PORT !== 443) {
-			url.port = String(HTTPS_PORT);
-		}
+		url.port = ""; // Always redirect to standard port 443 (iptables handles redirect to LISTEN_PORT)
 		return Response.redirect(url.toString(), 301);
 	},
 });
 
-// Initialize
+// Initialize routes
 log.info("local-proxy starting...");
 
 initStaticRoutes(ROUTES_FILE, rebuildAllRoutes);
 await initDockerWatcher(rebuildAllRoutes);
 rebuildAllRoutes();
 
-log.info(`HTTPS listening on :${httpsServer.port}`);
-log.info(`HTTP  listening on :${httpServer.port} (redirect)`);
+log.info(`Bun HTTPS on :${httpsServer.port} (internal)`);
+log.info(`HTTP redirect on :${HTTP_PORT}`);
+
+// SNI router — iptables redirects port 443 → LISTEN_PORT
+startSniRouter({
+	port: LISTEN_PORT,
+	localTarget: { host: "127.0.0.1", port: INTERNAL_HTTPS_PORT },
+	forwardTargets: [
+		{
+			match: (hostname) => hostname.endsWith(".internal.example") || hostname === "internal.example",
+			resolve: getTraefikTarget,
+			label: "*.internal.example -> Traefik container",
+		},
+	],
+});
