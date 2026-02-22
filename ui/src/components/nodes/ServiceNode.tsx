@@ -1,11 +1,11 @@
-import { Cube, File } from "@phosphor-icons/react";
+import { ArrowsLeftRight, Cube, File } from "@phosphor-icons/react";
 import { Handle, type NodeProps, Position } from "@xyflow/react";
 import type { RouteStats } from "../../types";
 
 export type ServiceNodeData = {
 	hostname: string;
 	target: string;
-	source: "docker" | "static";
+	source: "docker" | "static" | "traefik";
 	containerName?: string;
 	stats?: RouteStats;
 };
@@ -15,9 +15,15 @@ function formatCount(n: number): string {
 	return String(n);
 }
 
+const sourceConfig = {
+	docker: { color: "bg-sky-500/10 text-sky-600 dark:text-sky-400", icon: Cube },
+	static: { color: "bg-amber-500/10 text-amber-600 dark:text-amber-400", icon: File },
+	traefik: { color: "bg-orange-500/10 text-orange-600 dark:text-orange-400", icon: ArrowsLeftRight },
+};
+
 export function ServiceNode({ data }: NodeProps) {
 	const nodeData = data as unknown as ServiceNodeData;
-	const isDocker = nodeData.source === "docker";
+	const { color: badgeColor, icon: BadgeIcon } = sourceConfig[nodeData.source] ?? sourceConfig.docker;
 	const stats = nodeData.stats;
 	const errorRate = stats ? stats.errorCount / Math.max(stats.totalRequests, 1) : 0;
 
@@ -35,13 +41,9 @@ export function ServiceNode({ data }: NodeProps) {
 					<div className="flex items-center gap-1.5">
 						<span className="text-xs font-semibold text-gray-900 dark:text-zinc-100 truncate">{nodeData.hostname}</span>
 						<span
-							className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider ${
-								isDocker
-									? "bg-sky-500/10 text-sky-600 dark:text-sky-400"
-									: "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-							}`}
+							className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider ${badgeColor}`}
 						>
-							{isDocker ? <Cube size={10} weight="bold" /> : <File size={10} weight="bold" />}
+							<BadgeIcon size={10} weight="bold" />
 							{nodeData.source}
 						</span>
 					</div>

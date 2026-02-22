@@ -13,6 +13,8 @@ const INTERNAL_HTTPS_PORT = 9444; // Bun HTTPS server (internal, SNI router forw
 const HTTP_PORT = Number.parseInt(process.env.HTTP_PORT ?? "9080", 10);
 const CERT_PATH = resolvePath(import.meta.dir, "../certs/lvh.me.pem");
 const KEY_PATH = resolvePath(import.meta.dir, "../certs/lvh.me-key.pem");
+const CB_CERT_PATH = resolvePath(import.meta.dir, "../certs/_wildcard.internal.example.pem");
+const CB_KEY_PATH = resolvePath(import.meta.dir, "../certs/_wildcard.internal.example-key.pem");
 const ROUTES_FILE = resolvePath(import.meta.dir, "../routes.yaml");
 
 type WsData = { targetUrl: string; hostname: string };
@@ -29,10 +31,18 @@ const wsUpstreams = new Map<ServerWebSocket<WsData>, WebSocket>();
 const httpsServer = Bun.serve<WsData>({
 	port: INTERNAL_HTTPS_PORT,
 	hostname: "127.0.0.1",
-	tls: {
-		cert: Bun.file(CERT_PATH),
-		key: Bun.file(KEY_PATH),
-	},
+	tls: [
+		{
+			cert: Bun.file(CERT_PATH),
+			key: Bun.file(KEY_PATH),
+			serverName: "*.lvh.me",
+		},
+		{
+			cert: Bun.file(CB_CERT_PATH),
+			key: Bun.file(CB_KEY_PATH),
+			serverName: "*.internal.example",
+		},
+	],
 	async fetch(req, server) {
 		const hostname = (req.headers.get("host") ?? "").split(":")[0];
 

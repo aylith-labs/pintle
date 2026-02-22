@@ -3,7 +3,7 @@ export type ProxyRoute = {
 	path: string;
 	target: string;
 	stripPath: boolean;
-	source: "docker" | "static";
+	source: "docker" | "static" | "traefik";
 	containerName?: string;
 };
 

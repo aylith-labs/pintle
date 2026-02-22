@@ -11,7 +11,7 @@ let traefikIp: string | null = null;
 
 const NETWORK_NAME = process.env.DOCKER_NETWORK ?? "traefik";
 
-function parseLabels(labels: Record<string, string>): {
+function parseProxyLabels(labels: Record<string, string>): {
 	hosts: string[];
 	port: number | null;
 	path: string;
@@ -28,59 +28,145 @@ function parseLabels(labels: Record<string, string>): {
 	};
 }
 
-async function discoverRoutes(): Promise<Route[]> {
+function parseTraefikLabels(labels: Record<string, string>): {
+	hosts: string[];
+	port: number | null;
+	path: string;
+	strip: boolean;
+} | null {
+	if (labels["traefik.enable"] !== "true") return null;
+
+	// Find router rule: traefik.http.routers.<NAME>.rule
+	let ruleValue: string | null = null;
+	for (const [key, value] of Object.entries(labels)) {
+		if (/^traefik\.http\.routers\..+\.rule$/.test(key)) {
+			ruleValue = value;
+			break;
+		}
+	}
+	if (!ruleValue) return null;
+
+	// Parse Host(`...`) from rule
+	const hostMatches = [...ruleValue.matchAll(/Host\(`([^`]+)`\)/g)];
+	if (hostMatches.length === 0) return null;
+	const hosts = hostMatches.map((m) => m[1]);
+
+	// Parse optional PathPrefix(`...`)
+	const pathMatch = ruleValue.match(/PathPrefix\(`([^`]+)`\)/);
+	const path = pathMatch ? pathMatch[1] : "/";
+
+	// Find port: traefik.http.services.<NAME>.loadbalancer.server.port
+	let port: number | null = null;
+	for (const [key, value] of Object.entries(labels)) {
+		if (/^traefik\.http\.services\..+\.loadbalancer\.server\.port$/.test(key)) {
+			port = Number.parseInt(value, 10);
+			break;
+		}
+	}
+
+	// Check for stripprefix middleware
+	let strip = false;
+	for (const key of Object.keys(labels)) {
+		if (/^traefik\.http\.middlewares\..+\.stripprefix\.prefixes$/.test(key)) {
+			strip = true;
+			break;
+		}
+	}
+
+	return { hosts, port, path, strip };
+}
+
+function resolveContainerRoute(
+	containerInfo: Docker.ContainerInfo,
+	parsed: { hosts: string[]; port: number | null; path: string; strip: boolean },
+	source: "docker" | "traefik",
+): Route[] {
+	const networks = containerInfo.NetworkSettings?.Networks ?? {};
+	const networkInfo = networks[NETWORK_NAME];
+	const name = containerInfo.Names[0]?.replace(/^\//, "") ?? "unknown";
+
+	if (!networkInfo?.IPAddress) {
+		log.error(`Container ${name} (${source}) has no IP on network '${NETWORK_NAME}'`);
+		return [];
+	}
+
+	let port = parsed.port;
+	if (!port && containerInfo.Ports.length > 0) {
+		port = containerInfo.Ports[0].PrivatePort;
+	}
+	if (!port) {
+		log.error(`Container ${name} (${source}) has no port configured`);
+		return [];
+	}
+
+	const target = `http://${networkInfo.IPAddress}:${port}`;
+
+	return parsed.hosts.map((hostname) => ({
+		hostname,
+		path: parsed.path,
+		target,
+		stripPath: parsed.strip,
+		source,
+		containerName: name,
+	}));
+}
+
+async function discoverProxyRoutes(): Promise<Route[]> {
 	const containers = await docker.listContainers({
 		filters: { label: ["proxy.host"] },
 	});
 
 	const routes: Route[] = [];
-
 	for (const containerInfo of containers) {
-		const parsed = parseLabels(containerInfo.Labels);
+		const parsed = parseProxyLabels(containerInfo.Labels);
 		if (!parsed) continue;
+		routes.push(...resolveContainerRoute(containerInfo, parsed, "docker"));
+	}
+	return routes;
+}
 
-		// Get container IP on the shared network
-		const networks = containerInfo.NetworkSettings?.Networks ?? {};
-		const networkInfo = networks[NETWORK_NAME];
+async function discoverTraefikRoutes(excludeContainers: Set<string>): Promise<Route[]> {
+	const containers = await docker.listContainers({
+		filters: { label: ["traefik.enable=true"] },
+	});
 
-		if (!networkInfo?.IPAddress) {
-			log.error(`Container ${containerInfo.Names[0]} has no IP on network '${NETWORK_NAME}'`);
-			continue;
-		}
-
-		// Determine port: label > first exposed port
-		let port = parsed.port;
-		if (!port && containerInfo.Ports.length > 0) {
-			port = containerInfo.Ports[0].PrivatePort;
-		}
-		if (!port) {
-			log.error(`Container ${containerInfo.Names[0]} has no port configured`);
-			continue;
-		}
-
-		const target = `http://${networkInfo.IPAddress}:${port}`;
+	const routes: Route[] = [];
+	for (const containerInfo of containers) {
 		const name = containerInfo.Names[0]?.replace(/^\//, "") ?? "unknown";
 
-		for (const hostname of parsed.hosts) {
-			routes.push({
-				hostname,
-				path: parsed.path,
-				target,
-				stripPath: parsed.strip,
-				source: "docker",
-				containerName: name,
-			});
-		}
+		// Skip containers already handled by proxy.* labels
+		if (excludeContainers.has(name)) continue;
+
+		// Skip the Traefik container itself
+		if (containerInfo.Image.includes("traefik")) continue;
+
+		const parsed = parseTraefikLabels(containerInfo.Labels);
+		if (!parsed) continue;
+		routes.push(...resolveContainerRoute(containerInfo, parsed, "traefik"));
+	}
+	return routes;
+}
+
+async function discoverAllRoutes(): Promise<Route[]> {
+	// Proxy labels take precedence
+	const proxyRoutes = await discoverProxyRoutes();
+
+	const proxyContainers = new Set(proxyRoutes.map((r) => r.containerName).filter(Boolean) as string[]);
+
+	const traefikRoutes = await discoverTraefikRoutes(proxyContainers);
+
+	if (traefikRoutes.length > 0) {
+		log.info(`Discovered ${proxyRoutes.length} proxy + ${traefikRoutes.length} traefik route(s)`);
 	}
 
-	return routes;
+	return [...proxyRoutes, ...traefikRoutes];
 }
 
 function scheduleRebuild(): void {
 	if (rebuildTimer) clearTimeout(rebuildTimer);
 	rebuildTimer = setTimeout(async () => {
 		try {
-			currentRoutes = await discoverRoutes();
+			currentRoutes = await discoverAllRoutes();
 			await discoverTraefik();
 			onChange?.();
 		} catch (err) {
@@ -129,7 +215,7 @@ export async function initDockerWatcher(onUpdate: () => void): Promise<void> {
 
 	// Initial discovery
 	try {
-		currentRoutes = await discoverRoutes();
+		currentRoutes = await discoverAllRoutes();
 		await discoverTraefik();
 		log.info(`Discovered ${currentRoutes.length} Docker route(s) on network '${NETWORK_NAME}'`);
 	} catch (err) {

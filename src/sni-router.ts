@@ -104,8 +104,8 @@ export function startSniRouter(config: SniRouterConfig): void {
 					// TCP passthrough to external target (e.g., Traefik)
 					pipeToTarget(clientSocket, data, target.host, target.port);
 				} else {
-					// Target not available (e.g., Traefik not running)
-					clientSocket.destroy();
+					// Target not available (e.g., Traefik not running) — fall back to local HTTPS server
+					pipeToTarget(clientSocket, data, config.localTarget.host, config.localTarget.port);
 				}
 			} else {
 				// Forward to local Bun HTTPS server
