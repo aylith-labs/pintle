@@ -4,24 +4,24 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc -b && vite build",
+		"build": "tsgo -b && vite build",
 		"preview": "vite preview",
 		"lint": "bunx biome check --write --config-path=.. ."
 	},
 	"dependencies": {
-		"@phosphor-icons/react": "^2.1.7",
-		"@xyflow/react": "^12.6.0",
-		"react": "^19.1.0",
-		"react-dom": "^19.1.0"
+		"@phosphor-icons/react": "^2.1.10",
+		"@xyflow/react": "^12.10.1",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.4",
-		"@tailwindcss/vite": "^4.1.4",
-		"@types/react": "^19.1.4",
-		"@types/react-dom": "^19.1.5",
+		"@tailwindcss/vite": "^4.2.1",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
 		"@vitejs/plugin-react": "^5.1.4",
-		"tailwindcss": "^4.1.4",
-		"typescript": "^5.8.3",
-		"vite": "^6.3.5"
+		"tailwindcss": "^4.2.1",
+		"@typescript/native-preview": "^7.0.0-dev.20260223.1",
+		"vite": "^8.0.0-beta.15"
 	}
 }
