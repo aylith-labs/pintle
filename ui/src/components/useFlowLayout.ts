@@ -171,9 +171,9 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			style: { stroke: "#6366f1", strokeWidth: 1.5 },
 			markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
 			labelStyle: { fontSize: 10, fill: "#94a3b8" },
-				labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
-				labelBgPadding: [4, 6] as [number, number],
-				labelBgBorderRadius: 4,
+			labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
+			labelBgPadding: [4, 6] as [number, number],
+			labelBgBorderRadius: 4,
 		});
 
 		edges.push({
@@ -185,9 +185,9 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			style: { stroke: "#f97316", strokeWidth: 1.5 },
 			markerEnd: { type: MarkerType.ArrowClosed, color: "#f97316" },
 			labelStyle: { fontSize: 10, fill: "#94a3b8" },
-				labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
-				labelBgPadding: [4, 6] as [number, number],
-				labelBgBorderRadius: 4,
+			labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
+			labelBgPadding: [4, 6] as [number, number],
+			labelBgBorderRadius: 4,
 		});
 
 		edges.push({

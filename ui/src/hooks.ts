@@ -46,6 +46,10 @@ export function useRequests() {
 	return usePolling<ProxyRequest[]>(() => fetchRequests(100), 2_000);
 }
 
+export function useActivityRequests() {
+	return usePolling<ProxyRequest[]>(() => fetchRequests(1000), 2_000);
+}
+
 type Theme = "system" | "light" | "dark";
 
 export function useTheme() {

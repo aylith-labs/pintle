@@ -21,11 +21,13 @@ export const glossary: Record<string, GlossaryEntry> = {
 	},
 	HTTP: {
 		term: "Hypertext Transfer Protocol",
-		description: "The foundation protocol of the web. Defines how browsers request pages and servers respond with content.",
+		description:
+			"The foundation protocol of the web. Defines how browsers request pages and servers respond with content.",
 	},
 	HTTPS: {
 		term: "HTTP Secure",
-		description: "HTTP encrypted with TLS. All traffic between browser and server is encrypted, preventing eavesdropping.",
+		description:
+			"HTTP encrypted with TLS. All traffic between browser and server is encrypted, preventing eavesdropping.",
 	},
 	IP: {
 		term: "Internet Protocol",
@@ -43,7 +45,8 @@ export const glossary: Record<string, GlossaryEntry> = {
 	},
 	NAT: {
 		term: "Network Address Translation",
-		description: "A method of remapping network addresses. Used by iptables to redirect traffic from standard ports to proxy ports.",
+		description:
+			"A method of remapping network addresses. Used by iptables to redirect traffic from standard ports to proxy ports.",
 	},
 	SNI: {
 		term: "Server Name Indication",

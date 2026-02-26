@@ -46,7 +46,8 @@ export function ArchitecturePage() {
 				<p>
 					local-proxy is a <Abbr>HTTPS</Abbr> reverse proxy for local development. It routes <code>*.lvh.me</code>{" "}
 					domains through a Bun-powered server and passes <code>*.internal.example</code> traffic through to Traefik
-					when available. All traffic flows through a single entry point on port 443 using <Abbr>SNI</Abbr>-based routing.
+					when available. All traffic flows through a single entry point on port 443 using <Abbr>SNI</Abbr>-based
+					routing.
 				</p>
 			</Section>
 
@@ -140,10 +141,9 @@ export function ArchitecturePage() {
 			{/* Path-Based Routing */}
 			<Section title="Path-Based Routing">
 				<p>
-					By default, each container gets its own subdomain (e.g., <code>app.lvh.me</code>,{" "}
-					<code>api.lvh.me</code>). For cases where multiple services must share the same origin — such as a
-					frontend that calls its API on the same domain to avoid <Abbr>CORS</Abbr> — you can use path-based
-					routing.
+					By default, each container gets its own subdomain (e.g., <code>app.lvh.me</code>, <code>api.lvh.me</code>).
+					For cases where multiple services must share the same origin — such as a frontend that calls its API on the
+					same domain to avoid <Abbr>CORS</Abbr> — you can use path-based routing.
 				</p>
 
 				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
@@ -166,12 +166,12 @@ export function ArchitecturePage() {
 				</div>
 
 				<p>
-					<code>proxy.path</code> matches requests by path prefix. <code>proxy.strip</code> removes the prefix
-					before forwarding — so <code>/api/users</code> arrives at the backend as <code>/users</code>.
+					<code>proxy.path</code> matches requests by path prefix. <code>proxy.strip</code> removes the prefix before
+					forwarding — so <code>/api/users</code> arrives at the backend as <code>/users</code>.
 				</p>
 				<p>
-					In most cases, prefer separate subdomains (<code>app-api.lvh.me</code>) over path routing. Use path
-					routing only when same-origin is required.
+					In most cases, prefer separate subdomains (<code>app-api.lvh.me</code>) over path routing. Use path routing
+					only when same-origin is required.
 				</p>
 			</Section>
 
@@ -209,12 +209,16 @@ export function ArchitecturePage() {
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Config</td>
 								<td className="px-4 py-2">YAML files + Docker labels (verbose)</td>
-								<td className="px-4 py-2">Simple <code>proxy.*</code> labels + <code>routes.yaml</code></td>
+								<td className="px-4 py-2">
+									Simple <code>proxy.*</code> labels + <code>routes.yaml</code>
+								</td>
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Certificates</td>
 								<td className="px-4 py-2">ACME / manual cert config</td>
-								<td className="px-4 py-2"><Abbr>mkcert</Abbr> wildcard certs, auto-trusted</td>
+								<td className="px-4 py-2">
+									<Abbr>mkcert</Abbr> wildcard certs, auto-trusted
+								</td>
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Discovery</td>
@@ -223,34 +227,47 @@ export function ArchitecturePage() {
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Domains</td>
-								<td className="px-4 py-2"><code>*.internal.example</code></td>
-								<td className="px-4 py-2"><code>*.lvh.me</code> (no hosts file needed)</td>
+								<td className="px-4 py-2">
+									<code>*.internal.example</code>
+								</td>
+								<td className="px-4 py-2">
+									<code>*.lvh.me</code> (no hosts file needed)
+								</td>
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Dashboard</td>
 								<td className="px-4 py-2">Built-in web UI</td>
-								<td className="px-4 py-2">Custom React UI at <code>proxy.lvh.me</code></td>
+								<td className="px-4 py-2">
+									Custom React UI at <code>proxy.lvh.me</code>
+								</td>
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Startup</td>
 								<td className="px-4 py-2">Docker container boot (~2-5s)</td>
-								<td className="px-4 py-2">Instant (<code>bun run dev</code>)</td>
+								<td className="px-4 py-2">
+									Instant (<code>bun run dev</code>)
+								</td>
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">WebSocket</td>
 								<td className="px-4 py-2">Requires middleware config</td>
-								<td className="px-4 py-2">Native support (Vite <Abbr>HMR</Abbr>, etc.)</td>
+								<td className="px-4 py-2">
+									Native support (Vite <Abbr>HMR</Abbr>, etc.)
+								</td>
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Use case</td>
-								<td className="px-4 py-2">Work apps (<code>*.internal.example</code>)</td>
-								<td className="px-4 py-2">Personal projects (<code>*.lvh.me</code>)</td>
+								<td className="px-4 py-2">
+									Work apps (<code>*.internal.example</code>)
+								</td>
+								<td className="px-4 py-2">
+									Personal projects (<code>*.lvh.me</code>)
+								</td>
 							</tr>
 						</tbody>
 					</table>
 				</div>
 			</Section>
-
-			</div>
+		</div>
 	);
 }

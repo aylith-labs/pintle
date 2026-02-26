@@ -1,14 +1,25 @@
-import { BookOpen, ChartLine, FlowArrow, ListBullets, Monitor, Moon, Plugs, Sun } from "@phosphor-icons/react";
+import {
+	BookOpen,
+	ChartLine,
+	FlowArrow,
+	ListBullets,
+	ListMagnifyingGlass,
+	Monitor,
+	Moon,
+	Plugs,
+	Sun,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
-import { useRequests, useStats, useTheme, useTopology } from "./hooks";
+import { useStats, useTheme, useTopology } from "./hooks";
+import { ActivityPage } from "./pages/ActivityPage";
 import { ArchitecturePage } from "./pages/ArchitecturePage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EndpointsPage } from "./pages/EndpointsPage";
 import { GlossaryPage } from "./pages/GlossaryPage";
 
-type Page = "dashboard" | "architecture" | "glossary" | "endpoints";
+type Page = "dashboard" | "activity" | "architecture" | "glossary" | "endpoints";
 
-const pages = ["dashboard", "architecture", "glossary", "endpoints"] as const satisfies readonly Page[];
+const pages = ["dashboard", "activity", "architecture", "glossary", "endpoints"] as const satisfies readonly Page[];
 
 function hashToPage(hash: string): Page {
 	const path = hash.replace("#/", "") as Page;
@@ -41,6 +52,7 @@ const themeIcons = {
 
 const navItems: { page: Page; label: string; icon: typeof ChartLine }[] = [
 	{ page: "dashboard", label: "Dashboard", icon: ChartLine },
+	{ page: "activity", label: "Activity", icon: ListMagnifyingGlass },
 	{ page: "architecture", label: "Architecture", icon: BookOpen },
 	{ page: "glossary", label: "Glossary", icon: ListBullets },
 	{ page: "endpoints", label: "Endpoints", icon: Plugs },
@@ -49,7 +61,6 @@ const navItems: { page: Page; label: string; icon: typeof ChartLine }[] = [
 export function App() {
 	const { data: topology, isLoading: topoLoading } = useTopology();
 	const { data: stats } = useStats();
-	const { data: requests } = useRequests();
 	const { theme, cycleTheme } = useTheme();
 	const { page, navigate } = useRoute();
 
@@ -111,7 +122,8 @@ export function App() {
 
 			{/* Content */}
 			<main className="px-4 pt-4 pb-3 space-y-3">
-				{page === "dashboard" && <DashboardPage topology={topology} stats={stats} requests={requests} />}
+				{page === "dashboard" && <DashboardPage topology={topology} stats={stats} />}
+				{page === "activity" && <ActivityPage topology={topology} stats={stats} />}
 				{page === "architecture" && <ArchitecturePage />}
 				{page === "glossary" && <GlossaryPage />}
 				{page === "endpoints" && <EndpointsPage />}
