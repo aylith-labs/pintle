@@ -48,15 +48,15 @@ export function ServiceNode({ data }: NodeProps) {
 							{nodeData.hostname}
 						</a>
 						<span
-							className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider ${badgeColor}`}
+							className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.5625rem] font-medium uppercase tracking-wider ${badgeColor}`}
 						>
 							<BadgeIcon size={10} weight="bold" />
 							{nodeData.source}
 						</span>
 					</div>
-					<div className="text-[10px] font-mono text-gray-400 dark:text-zinc-500 truncate">{nodeData.target}</div>
+					<div className="text-[0.625rem] font-mono text-gray-400 dark:text-zinc-500 truncate">{nodeData.target}</div>
 					{stats && (
-						<div className="flex items-center gap-2 mt-1 text-[10px] text-gray-500 dark:text-zinc-400">
+						<div className="flex items-center gap-2 mt-1 text-[0.625rem] text-gray-500 dark:text-zinc-400">
 							<span>{formatCount(stats.totalRequests)} req</span>
 							<span>{stats.avgDurationMs.toFixed(0)}ms avg</span>
 							{stats.errorCount > 0 && <span className="text-red-500">{stats.errorCount} err</span>}

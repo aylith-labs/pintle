@@ -18,7 +18,7 @@ function FilterSelect({
 	onChange: (value: string) => void;
 }) {
 	return (
-		<label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-gray-500 dark:text-zinc-400">
+		<label className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider text-gray-500 dark:text-zinc-400">
 			{label}
 			<select
 				value={value}

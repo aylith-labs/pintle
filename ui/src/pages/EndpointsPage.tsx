@@ -7,7 +7,7 @@ const methodColors: Record<HttpMethod, string> = {
 
 function MethodBadge({ method }: { method: HttpMethod }) {
 	return (
-		<span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${methodColors[method]}`}>
+		<span className={`inline-flex px-2 py-0.5 rounded text-[0.625rem] font-bold border ${methodColors[method]}`}>
 			{method}
 		</span>
 	);
@@ -19,7 +19,7 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
 			<div className="px-4 py-3 flex items-center gap-3 border-b border-gray-200/60 dark:border-zinc-800">
 				<MethodBadge method={endpoint.method} />
 				<code className="text-xs font-semibold text-gray-900 dark:text-zinc-100">{endpoint.path}</code>
-				<span className="ml-auto text-[10px] font-mono text-gray-400 dark:text-zinc-500">
+				<span className="ml-auto text-[0.625rem] font-mono text-gray-400 dark:text-zinc-500">
 					→ {endpoint.responseType}
 				</span>
 			</div>
@@ -27,7 +27,7 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
 				<p className="text-xs leading-relaxed text-gray-600 dark:text-zinc-400">{endpoint.description}</p>
 				{endpoint.params && endpoint.params.length > 0 && (
 					<div>
-						<div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-2">
+						<div className="text-[0.625rem] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 mb-2">
 							Parameters
 						</div>
 						<div className="rounded-lg border border-gray-200/60 dark:border-zinc-800 overflow-hidden">

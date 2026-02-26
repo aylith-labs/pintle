@@ -1,16 +1,7 @@
-import {
-	BookOpen,
-	ChartLine,
-	FlowArrow,
-	ListBullets,
-	ListMagnifyingGlass,
-	Monitor,
-	Moon,
-	Plugs,
-	Sun,
-} from "@phosphor-icons/react";
+import { BookOpen, ChartLine, FlowArrow, ListBullets, ListMagnifyingGlass, Plugs } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
-import { useStats, useTheme, useTopology } from "./hooks";
+import { SettingsMenu } from "./components/SettingsMenu";
+import { useFontSize, useStats, useTheme, useTopology } from "./hooks";
 import { ActivityPage } from "./pages/ActivityPage";
 import { ArchitecturePage } from "./pages/ArchitecturePage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -44,12 +35,6 @@ function useRoute(): { page: Page; navigate: (p: Page) => void } {
 	return { page, navigate };
 }
 
-const themeIcons = {
-	system: Monitor,
-	light: Sun,
-	dark: Moon,
-};
-
 const navItems: { page: Page; label: string; icon: typeof ChartLine }[] = [
 	{ page: "dashboard", label: "Dashboard", icon: ChartLine },
 	{ page: "activity", label: "Activity", icon: ListMagnifyingGlass },
@@ -61,10 +46,9 @@ const navItems: { page: Page; label: string; icon: typeof ChartLine }[] = [
 export function App() {
 	const { data: topology, isLoading: topoLoading } = useTopology();
 	const { data: stats } = useStats();
-	const { theme, cycleTheme } = useTheme();
+	const { theme, setTheme } = useTheme();
+	const { size: fontSize, increase, decrease, reset } = useFontSize();
 	const { page, navigate } = useRoute();
-
-	const ThemeIcon = themeIcons[theme];
 
 	if (topoLoading) {
 		return (
@@ -95,7 +79,7 @@ export function App() {
 										key={item.page}
 										type="button"
 										onClick={() => navigate(item.page)}
-										className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[11px] font-medium transition-colors ${
+										className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[0.6875rem] font-medium transition-colors ${
 											isActive
 												? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
 												: "text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
@@ -109,14 +93,14 @@ export function App() {
 						</nav>
 					</div>
 
-					<button
-						type="button"
-						onClick={cycleTheme}
-						className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-					>
-						<ThemeIcon size={14} weight="bold" />
-						<span className="uppercase tracking-wider">{theme}</span>
-					</button>
+					<SettingsMenu
+						theme={theme}
+						setTheme={setTheme}
+						fontSize={fontSize}
+						onIncrease={increase}
+						onDecrease={decrease}
+						onReset={reset}
+					/>
 				</div>
 			</header>
 

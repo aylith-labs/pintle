@@ -71,7 +71,7 @@ function VirtualRequestTable({ requests }: { requests: ProxyRequest[] }) {
 				<span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
 					Requests
 				</span>
-				<span className="text-[10px] font-mono text-gray-400 dark:text-zinc-500">{requests.length} results</span>
+				<span className="text-[0.625rem] font-mono text-gray-400 dark:text-zinc-500">{requests.length} results</span>
 			</div>
 
 			<div className="grid grid-cols-[80px_60px_1fr_1fr_60px_70px] bg-gray-50 dark:bg-zinc-900 border-b border-gray-200/60 dark:border-zinc-800 text-xs font-mono">

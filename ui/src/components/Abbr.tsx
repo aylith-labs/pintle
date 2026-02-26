@@ -43,7 +43,7 @@ export function Abbr({ children, title }: { children: string; title?: string }) 
 			<span
 				ref={tooltipRef}
 				style={{ transform: `translateX(calc(-50% + ${pos.left}px))` }}
-				className={`absolute left-1/2 px-3 py-2 text-[11px] leading-relaxed bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg shadow-lg opacity-0 group-hover/abbr:opacity-100 transition-opacity duration-150 pointer-events-none w-max max-w-[280px] z-50 text-center font-sans normal-case tracking-normal ${
+				className={`absolute left-1/2 px-3 py-2 text-[0.6875rem] leading-relaxed bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg shadow-lg opacity-0 group-hover/abbr:opacity-100 transition-opacity duration-150 pointer-events-none w-max max-w-[280px] z-50 text-center font-sans normal-case tracking-normal ${
 					pos.vertical === "above" ? "bottom-full mb-1.5" : "top-full mt-1.5"
 				}`}
 			>

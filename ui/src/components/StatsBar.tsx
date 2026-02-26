@@ -21,7 +21,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 				{icon}
 			</div>
 			<div className="px-2 py-2">
-				<div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-zinc-400">{label}</div>
+				<div className="text-[0.625rem] uppercase tracking-wider text-gray-500 dark:text-zinc-400">{label}</div>
 				<div className="text-sm font-semibold text-gray-900 dark:text-zinc-100">{value}</div>
 			</div>
 		</div>

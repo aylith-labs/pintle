@@ -32,10 +32,10 @@ export function TraefikNode({ data }: NodeProps) {
 				</div>
 				<div>
 					<div className="text-xs font-semibold text-gray-900 dark:text-zinc-100">Traefik</div>
-					<div className="text-[10px] font-mono text-gray-500 dark:text-zinc-400">
+					<div className="text-[0.625rem] font-mono text-gray-500 dark:text-zinc-400">
 						{isRunning ? `${nodeData.ip}:${nodeData.port}` : "Not Running"}
 					</div>
-					<div className="text-[10px] text-gray-400 dark:text-zinc-500">TCP passthrough</div>
+					<div className="text-[0.625rem] text-gray-400 dark:text-zinc-500">TCP passthrough</div>
 				</div>
 			</div>
 			<Handle type="source" position={Position.Right} className="!bg-orange-500 !w-2 !h-2 !border-0" />

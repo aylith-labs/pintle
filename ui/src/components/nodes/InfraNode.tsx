@@ -29,8 +29,10 @@ export function InfraNode({ data }: NodeProps) {
 				</div>
 				<div>
 					<div className="text-xs font-semibold text-gray-900 dark:text-zinc-100">{nodeData.label}</div>
-					{nodeData.sublabel && <div className="text-[10px] text-gray-500 dark:text-zinc-400">{nodeData.sublabel}</div>}
-					<div className="text-[10px] font-mono text-gray-400 dark:text-zinc-500">
+					{nodeData.sublabel && (
+						<div className="text-[0.625rem] text-gray-500 dark:text-zinc-400">{nodeData.sublabel}</div>
+					)}
+					<div className="text-[0.625rem] font-mono text-gray-400 dark:text-zinc-500">
 						:{nodeData.port}
 						{nodeData.externalPort != null && <span className="text-indigo-400"> (:{nodeData.externalPort})</span>}
 					</div>

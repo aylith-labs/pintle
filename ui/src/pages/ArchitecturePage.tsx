@@ -12,10 +12,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function DiagramRow({ left, arrow, right, note }: { left: string; arrow?: string; right: string; note?: string }) {
 	return (
-		<div className="flex items-center gap-2 font-mono text-[11px]">
+		<div className="flex items-center gap-2 font-mono text-[0.6875rem]">
 			<span className="text-gray-900 dark:text-zinc-100 min-w-[120px]">{left}</span>
 			<ArrowRight size={12} className="text-indigo-400 shrink-0" />
-			{arrow && <span className="text-indigo-400 text-[10px]">{arrow}</span>}
+			{arrow && <span className="text-indigo-400 text-[0.625rem]">{arrow}</span>}
 			{arrow && <ArrowRight size={12} className="text-indigo-400 shrink-0" />}
 			<span className="text-gray-900 dark:text-zinc-100">{right}</span>
 			{note && <span className="text-gray-400 dark:text-zinc-500 ml-2">({note})</span>}
@@ -34,7 +34,7 @@ export function ArchitecturePage() {
 				</div>
 				<a
 					href="#/"
-					className="text-[11px] font-medium text-indigo-500 hover:text-indigo-400 transition-colors flex items-center gap-1"
+					className="text-[0.6875rem] font-medium text-indigo-500 hover:text-indigo-400 transition-colors flex items-center gap-1"
 				>
 					View Live Dashboard
 					<ArrowRight size={12} />
@@ -54,7 +54,7 @@ export function ArchitecturePage() {
 			{/* Traffic Flow */}
 			<Section title="How Traffic Flows">
 				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-2">
-					<div className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
+					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
 						<Abbr>HTTPS</Abbr> Traffic (port 443)
 					</div>
 					<DiagramRow left="Browser :443" arrow="iptables NAT" right="SNI Router :9443" note="port redirect" />
@@ -62,7 +62,7 @@ export function ArchitecturePage() {
 					<DiagramRow left="SNI Router" arrow="*.internal.example" right="Traefik :443" note="TCP passthrough" />
 					<DiagramRow left="Bun HTTPS" right="Docker containers" note="reverse proxy" />
 
-					<div className="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-4 mb-3">
+					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-4 mb-3">
 						<Abbr>HTTP</Abbr> Traffic (port 80)
 					</div>
 					<DiagramRow left="Browser :80" arrow="iptables NAT" right="Redirect :9080" note="301 to HTTPS" />
@@ -109,10 +109,10 @@ export function ArchitecturePage() {
 
 				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
 					<div>
-						<div className="text-[10px] font-medium uppercase tracking-wider text-sky-500 mb-1">
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-sky-500 mb-1">
 							Native labels (proxy.*)
 						</div>
-						<code className="text-[11px] block space-y-0.5">
+						<code className="text-[0.6875rem] block space-y-0.5">
 							<div>proxy.host: "myapp.lvh.me"</div>
 							<div>proxy.port: "3000"</div>
 							<div>proxy.path: "/" (optional)</div>
@@ -121,10 +121,10 @@ export function ArchitecturePage() {
 					</div>
 
 					<div>
-						<div className="text-[10px] font-medium uppercase tracking-wider text-orange-500 mb-1">
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-orange-500 mb-1">
 							Traefik labels (auto-parsed)
 						</div>
-						<code className="text-[11px] block space-y-0.5">
+						<code className="text-[0.6875rem] block space-y-0.5">
 							<div>traefik.enable: "true"</div>
 							<div>traefik.http.routers.app.rule: "Host(`app.internal.example`)"</div>
 							<div>traefik.http.services.app.loadbalancer.server.port: "3000"</div>
@@ -148,10 +148,10 @@ export function ArchitecturePage() {
 
 				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
 					<div>
-						<div className="text-[10px] font-medium uppercase tracking-wider text-sky-500 mb-1">
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-sky-500 mb-1">
 							Example: Frontend + API on same host
 						</div>
-						<code className="text-[11px] block space-y-0.5">
+						<code className="text-[0.6875rem] block space-y-0.5">
 							<div># Frontend container</div>
 							<div>proxy.host: "app.lvh.me"</div>
 							<div>proxy.port: "3000"</div>
