@@ -1,6 +1,5 @@
 import { ArrowRight, FlowArrow } from "@phosphor-icons/react";
 import { Abbr } from "../components/Abbr";
-import { glossary } from "../data/glossary";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
 	return (
@@ -138,6 +137,44 @@ export function ArchitecturePage() {
 				</p>
 			</Section>
 
+			{/* Path-Based Routing */}
+			<Section title="Path-Based Routing">
+				<p>
+					By default, each container gets its own subdomain (e.g., <code>app.lvh.me</code>,{" "}
+					<code>api.lvh.me</code>). For cases where multiple services must share the same origin — such as a
+					frontend that calls its API on the same domain to avoid <Abbr>CORS</Abbr> — you can use path-based
+					routing.
+				</p>
+
+				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
+					<div>
+						<div className="text-[10px] font-medium uppercase tracking-wider text-sky-500 mb-1">
+							Example: Frontend + API on same host
+						</div>
+						<code className="text-[11px] block space-y-0.5">
+							<div># Frontend container</div>
+							<div>proxy.host: "app.lvh.me"</div>
+							<div>proxy.port: "3000"</div>
+							<div>&nbsp;</div>
+							<div># API container</div>
+							<div>proxy.host: "app.lvh.me"</div>
+							<div>proxy.path: "/api"</div>
+							<div>proxy.strip: "true"</div>
+							<div>proxy.port: "8080"</div>
+						</code>
+					</div>
+				</div>
+
+				<p>
+					<code>proxy.path</code> matches requests by path prefix. <code>proxy.strip</code> removes the prefix
+					before forwarding — so <code>/api/users</code> arrives at the backend as <code>/users</code>.
+				</p>
+				<p>
+					In most cases, prefer separate subdomains (<code>app-api.lvh.me</code>) over path routing. Use path
+					routing only when same-origin is required.
+				</p>
+			</Section>
+
 			{/* Traefik Fallback */}
 			<Section title="Traefik Fallback">
 				<p>
@@ -152,24 +189,68 @@ export function ArchitecturePage() {
 				</p>
 			</Section>
 
-			{/* Glossary */}
-			<Section title="Glossary">
-				<div className="grid grid-cols-1 gap-2">
-					{Object.entries(glossary).map(([abbr, entry]) => (
-						<div
-							key={abbr}
-							className="flex gap-3 py-1.5 border-b border-gray-100 dark:border-zinc-800/60 last:border-0"
-						>
-							<span className="font-mono font-semibold text-indigo-500 min-w-[70px] shrink-0">{abbr}</span>
-							<div>
-								<span className="font-medium text-gray-900 dark:text-zinc-200">{entry.term}</span>
-								<span className="text-gray-400 dark:text-zinc-500"> — </span>
-								<span>{entry.description}</span>
-							</div>
-						</div>
-					))}
+			{/* Comparison */}
+			<Section title="Traefik vs local-proxy">
+				<div className="rounded-lg border border-gray-200/60 dark:border-zinc-800 overflow-hidden mt-2">
+					<table className="w-full text-xs">
+						<thead className="bg-gray-50 dark:bg-zinc-900">
+							<tr>
+								<th className="text-left px-4 py-2.5 font-semibold text-gray-500 dark:text-zinc-400 w-1/3" />
+								<th className="text-left px-4 py-2.5 font-semibold text-orange-500">Traefik</th>
+								<th className="text-left px-4 py-2.5 font-semibold text-indigo-500">local-proxy</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60">
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Runtime</td>
+								<td className="px-4 py-2">Go binary in Docker container</td>
+								<td className="px-4 py-2">Bun process on host</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Config</td>
+								<td className="px-4 py-2">YAML files + Docker labels (verbose)</td>
+								<td className="px-4 py-2">Simple <code>proxy.*</code> labels + <code>routes.yaml</code></td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Certificates</td>
+								<td className="px-4 py-2">ACME / manual cert config</td>
+								<td className="px-4 py-2"><Abbr>mkcert</Abbr> wildcard certs, auto-trusted</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Discovery</td>
+								<td className="px-4 py-2">Docker labels only</td>
+								<td className="px-4 py-2">Docker labels + static routes + Traefik label parsing</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Domains</td>
+								<td className="px-4 py-2"><code>*.internal.example</code></td>
+								<td className="px-4 py-2"><code>*.lvh.me</code> (no hosts file needed)</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Dashboard</td>
+								<td className="px-4 py-2">Built-in web UI</td>
+								<td className="px-4 py-2">Custom React UI at <code>proxy.lvh.me</code></td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Startup</td>
+								<td className="px-4 py-2">Docker container boot (~2-5s)</td>
+								<td className="px-4 py-2">Instant (<code>bun run dev</code>)</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">WebSocket</td>
+								<td className="px-4 py-2">Requires middleware config</td>
+								<td className="px-4 py-2">Native support (Vite <Abbr>HMR</Abbr>, etc.)</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Use case</td>
+								<td className="px-4 py-2">Work apps (<code>*.internal.example</code>)</td>
+								<td className="px-4 py-2">Personal projects (<code>*.lvh.me</code>)</td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 			</Section>
-		</div>
+
+			</div>
 	);
 }

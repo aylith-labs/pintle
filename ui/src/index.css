@@ -1,16 +1,13 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
 	--font-mono: "SF Mono", Monaco, "Cascadia Code", "Consolas", monospace;
 	--color-indigo-accent: #6366f1;
 }
 
-* {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
-}
 
 body {
 	font-family: var(--font-mono);
@@ -37,6 +34,21 @@ body {
 .react-flow__edge-path.animated-edge {
 	stroke-dasharray: 5 5;
 	animation: flow-dash 1s linear infinite;
+}
+
+/* Inline code — tag style */
+code {
+	background: #f4f4f5;
+	border: 1px solid #d4d4d8;
+	padding: 1px 7px;
+	border-radius: 4px;
+	font-size: 0.85em;
+	font-weight: 500;
+}
+
+.dark code {
+	background: #27272a;
+	border-color: #3f3f46;
 }
 
 /* Glass morphism utility */

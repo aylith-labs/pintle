@@ -21,7 +21,7 @@ export function InfraNode({ data }: NodeProps) {
 	const Icon = icons[nodeData.icon] ?? Globe;
 
 	return (
-		<div className="glass rounded-xl border border-gray-200/60 dark:border-zinc-700/60 bg-white/80 dark:bg-zinc-900/80 px-4 py-3 shadow-lg min-w-[160px]">
+		<div className="glass rounded-lg border border-gray-200/60 dark:border-zinc-700/60 bg-white/80 dark:bg-zinc-900/80 px-2.5 py-1.5 shadow-lg min-w-[140px]">
 			<Handle type="target" position={Position.Left} className="!bg-indigo-500 !w-2 !h-2 !border-0" />
 			<div className="flex items-center gap-2.5">
 				<div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-500">

@@ -13,7 +13,7 @@ export function TraefikNode({ data }: NodeProps) {
 
 	return (
 		<div
-			className={`glass rounded-xl border px-4 py-3 shadow-lg min-w-[200px] ${
+			className={`glass rounded-lg border px-2.5 py-1.5 shadow-lg min-w-[140px] ${
 				isRunning
 					? "border-orange-300/60 dark:border-orange-700/60 bg-orange-50/80 dark:bg-orange-950/40"
 					: "border-red-300/60 dark:border-red-800/60 bg-red-50/80 dark:bg-red-950/40"

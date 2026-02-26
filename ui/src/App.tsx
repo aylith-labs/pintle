@@ -1,22 +1,26 @@
-import { BookOpen, ChartLine, FlowArrow, Monitor, Moon, Sun } from "@phosphor-icons/react";
+import { BookOpen, ChartLine, FlowArrow, ListBullets, Monitor, Moon, Plugs, Sun } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 import { useRequests, useStats, useTheme, useTopology } from "./hooks";
 import { ArchitecturePage } from "./pages/ArchitecturePage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { EndpointsPage } from "./pages/EndpointsPage";
+import { GlossaryPage } from "./pages/GlossaryPage";
 
-type Page = "dashboard" | "architecture";
+type Page = "dashboard" | "architecture" | "glossary" | "endpoints";
+
+const pages = ["dashboard", "architecture", "glossary", "endpoints"] as const satisfies readonly Page[];
+
+function hashToPage(hash: string): Page {
+	const path = hash.replace("#/", "") as Page;
+	return pages.includes(path) ? path : "dashboard";
+}
 
 function useRoute(): { page: Page; navigate: (p: Page) => void } {
-	const [page, setPage] = useState<Page>(() => {
-		const hash = window.location.hash;
-		if (hash === "#/architecture") return "architecture";
-		return "dashboard";
-	});
+	const [page, setPage] = useState<Page>(() => hashToPage(window.location.hash));
 
 	useEffect(() => {
 		function onHashChange() {
-			const hash = window.location.hash;
-			setPage(hash === "#/architecture" ? "architecture" : "dashboard");
+			setPage(hashToPage(window.location.hash));
 		}
 		window.addEventListener("hashchange", onHashChange);
 		return () => window.removeEventListener("hashchange", onHashChange);
@@ -38,6 +42,8 @@ const themeIcons = {
 const navItems: { page: Page; label: string; icon: typeof ChartLine }[] = [
 	{ page: "dashboard", label: "Dashboard", icon: ChartLine },
 	{ page: "architecture", label: "Architecture", icon: BookOpen },
+	{ page: "glossary", label: "Glossary", icon: ListBullets },
+	{ page: "endpoints", label: "Endpoints", icon: Plugs },
 ];
 
 export function App() {
@@ -61,7 +67,7 @@ export function App() {
 		<div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
 			{/* Header */}
 			<header className="border-b border-gray-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 glass sticky top-0 z-50">
-				<div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+				<div className="px-4 py-2 flex items-center justify-between">
 					<div className="flex items-center gap-4">
 						<div className="flex items-center gap-2.5">
 							<FlowArrow size={20} weight="bold" className="text-indigo-500" />
@@ -78,7 +84,7 @@ export function App() {
 										key={item.page}
 										type="button"
 										onClick={() => navigate(item.page)}
-										className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+										className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[11px] font-medium transition-colors ${
 											isActive
 												? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
 												: "text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
@@ -104,9 +110,11 @@ export function App() {
 			</header>
 
 			{/* Content */}
-			<main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+			<main className="px-4 pt-4 pb-3 space-y-3">
 				{page === "dashboard" && <DashboardPage topology={topology} stats={stats} requests={requests} />}
 				{page === "architecture" && <ArchitecturePage />}
+				{page === "glossary" && <GlossaryPage />}
+				{page === "endpoints" && <EndpointsPage />}
 			</main>
 		</div>
 	);

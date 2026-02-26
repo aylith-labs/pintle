@@ -39,7 +39,14 @@ export function ServiceNode({ data }: NodeProps) {
 				<div className={`w-2 h-2 rounded-full ${healthColor} shrink-0`} />
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-1.5">
-						<span className="text-xs font-semibold text-gray-900 dark:text-zinc-100 truncate">{nodeData.hostname}</span>
+						<a
+							href={`https://${nodeData.hostname}`}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="nopan nodrag text-xs font-semibold text-gray-900 dark:text-zinc-100 truncate hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+						>
+							{nodeData.hostname}
+						</a>
 						<span
 							className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider ${badgeColor}`}
 						>

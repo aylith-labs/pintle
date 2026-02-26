@@ -11,7 +11,7 @@ type DashboardPageProps = {
 
 export function DashboardPage({ topology, stats, requests }: DashboardPageProps) {
 	return (
-		<div className="space-y-6">
+		<div className="flex flex-col gap-3 h-[calc(100vh-theme(spacing.14))]">
 			<StatsBar topology={topology} stats={stats} />
 			<FlowDiagram topology={topology} stats={stats} />
 			<RequestLog requests={requests} />
