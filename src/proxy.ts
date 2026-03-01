@@ -35,6 +35,7 @@ export async function handleRequest(req: Request): Promise<Response> {
 			headers,
 			body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
 			redirect: 'manual',
+			decompress: false,
 		});
 
 		const durationMs = performance.now() - startTime;
@@ -49,9 +50,8 @@ export async function handleRequest(req: Request): Promise<Response> {
 			durationMs,
 		});
 
-		// Copy response headers
+		// Copy response headers, remove hop-by-hop headers
 		const respHeaders = new Headers(response.headers);
-		// Remove hop-by-hop headers
 		respHeaders.delete('transfer-encoding');
 
 		return new Response(response.body, {
