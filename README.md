@@ -194,6 +194,7 @@ For anything beyond local dev routing, use Traefik or Caddy directly.
 ## Docs
 
 - [Privileged Ports](docs/privileged-ports.md) — Why local-proxy uses iptables/pfctl and how other approaches (setcap, authbind, sysctl, Docker) compare
+- [Benchmark Findings](docs/benchmark-findings.md) — Bun fetch performance under concurrent load vs Traefik (unresolved)
 
 ## Dashboard
 

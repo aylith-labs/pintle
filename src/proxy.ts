@@ -29,7 +29,6 @@ export async function handleRequest(req: Request): Promise<Response> {
 		headers.set('x-forwarded-for', req.headers.get('x-real-ip') ?? '127.0.0.1');
 		headers.set('x-forwarded-proto', 'https');
 		headers.set('x-forwarded-host', hostname);
-
 		const response = await fetch(targetUrl, {
 			method: req.method,
 			headers,

@@ -12,8 +12,8 @@ import { getPassthroughDomains, getStaticRoutes, getStaticTcpRoutes, initStaticR
 import { startTcpRouters } from './tcp-router';
 
 const LISTEN_PORT = Number.parseInt(process.env.LISTEN_PORT ?? '9443', 10);
-const INTERNAL_HTTPS_PORT = 9444; // Bun HTTPS server (internal, SNI router forwards here)
 const HTTP_PORT = Number.parseInt(process.env.HTTP_PORT ?? '9080', 10);
+const BUN_INTERNAL_PORT = 9444; // Only used when SNI router is active (passthrough domains)
 const CERTS_DIR = resolvePath(import.meta.dir, '../certs');
 const CERT_PATH = resolvePath(CERTS_DIR, `${BASE_DOMAIN}.pem`);
 const KEY_PATH = resolvePath(CERTS_DIR, `${BASE_DOMAIN}-key.pem`);
@@ -64,11 +64,23 @@ function buildPassthroughTls(): {
 
 const wsUpstreams = new Map<ServerWebSocket<WsData>, WebSocket>();
 
-// --- HTTPS server (receives connections from SNI router) ---
+// --- SNI router (only needed for passthrough domains) ---
+
+const passthroughTargets = getPassthroughDomains().map((pt) => ({
+	match: (hostname: string) => hostname.endsWith(`.${pt.domain}`) || hostname === pt.domain,
+	resolve: getTraefikTarget,
+	label: `*.${pt.domain} -> ${pt.target} container`,
+}));
+const needsSniRouter = passthroughTargets.length > 0;
+const httpsPort = needsSniRouter ? BUN_INTERNAL_PORT : LISTEN_PORT;
+const httpsHostname = needsSniRouter ? '127.0.0.1' : undefined;
+
+// --- HTTPS server ---
 
 const httpsServer = Bun.serve<WsData>({
-	port: INTERNAL_HTTPS_PORT,
-	hostname: '127.0.0.1',
+	port: httpsPort,
+	hostname: httpsHostname,
+	idleTimeout: 120,
 	tls: [
 		{
 			cert: Bun.file(CERT_PATH),
@@ -161,22 +173,16 @@ Bun.serve({
 	},
 });
 
-log.info(`Bun HTTPS on :${httpsServer.port} (internal)`);
+log.info(`Bun HTTPS on :${httpsServer.port}${needsSniRouter ? ' (internal, behind SNI router)' : ''}`);
 log.info(`HTTP redirect on :${HTTP_PORT}`);
 
-// --- SNI router (iptables/pfctl redirects port 443 → LISTEN_PORT) ---
-
-const forwardTargets = getPassthroughDomains().map((pt) => ({
-	match: (hostname: string) => hostname.endsWith(`.${pt.domain}`) || hostname === pt.domain,
-	resolve: getTraefikTarget, // Currently only "traefik" target is supported
-	label: `*.${pt.domain} -> ${pt.target} container`,
-}));
-
-startSniRouter({
-	port: LISTEN_PORT,
-	localTarget: { host: '127.0.0.1', port: INTERNAL_HTTPS_PORT },
-	forwardTargets,
-});
+if (needsSniRouter) {
+	startSniRouter({
+		port: LISTEN_PORT,
+		localTarget: { host: '127.0.0.1', port: BUN_INTERNAL_PORT },
+		forwardTargets: passthroughTargets,
+	});
+}
 
 // --- TCP routers (Redis, PostgreSQL, MySQL — TLS termination + plain TCP to container) ---
 
