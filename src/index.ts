@@ -1,6 +1,7 @@
 import { resolve as resolvePath } from "node:path";
 import type { ServerWebSocket } from "bun";
 import { handleApiRequest } from "./api";
+import { BASE_DOMAIN, DASHBOARD_HOST } from "./config";
 import { getDockerRoutes, getTraefikTarget, initDockerWatcher } from "./docker-watcher";
 import * as log from "./logger";
 import { handleRequest } from "./proxy";
@@ -11,8 +12,8 @@ import { getStaticRoutes, initStaticRoutes } from "./static-routes";
 const LISTEN_PORT = Number.parseInt(process.env.LISTEN_PORT ?? "9443", 10);
 const INTERNAL_HTTPS_PORT = 9444; // Bun HTTPS server (internal, SNI router forwards here)
 const HTTP_PORT = Number.parseInt(process.env.HTTP_PORT ?? "9080", 10);
-const CERT_PATH = resolvePath(import.meta.dir, "../certs/lvh.me.pem");
-const KEY_PATH = resolvePath(import.meta.dir, "../certs/lvh.me-key.pem");
+const CERT_PATH = resolvePath(import.meta.dir, `../certs/${BASE_DOMAIN}.pem`);
+const KEY_PATH = resolvePath(import.meta.dir, `../certs/${BASE_DOMAIN}-key.pem`);
 const CB_CERT_PATH = resolvePath(import.meta.dir, "../certs/_wildcard.internal.example.pem");
 const CB_KEY_PATH = resolvePath(import.meta.dir, "../certs/_wildcard.internal.example-key.pem");
 const ROUTES_FILE = resolvePath(import.meta.dir, "../routes.yaml");
@@ -35,7 +36,7 @@ const httpsServer = Bun.serve<WsData>({
 		{
 			cert: Bun.file(CERT_PATH),
 			key: Bun.file(KEY_PATH),
-			serverName: "*.lvh.me",
+			serverName: `*.${BASE_DOMAIN}`,
 		},
 		{
 			cert: Bun.file(CB_CERT_PATH),
@@ -46,8 +47,8 @@ const httpsServer = Bun.serve<WsData>({
 	async fetch(req, server) {
 		const hostname = (req.headers.get("host") ?? "").split(":")[0];
 
-		// Dashboard API + UI at proxy.lvh.me
-		if (hostname === "proxy.lvh.me") {
+		// Dashboard API + UI at proxy.<BASE_DOMAIN>
+		if (hostname === DASHBOARD_HOST) {
 			// Proxy Vite HMR WebSocket
 			if (req.headers.get("upgrade")?.toLowerCase() === "websocket") {
 				const url = new URL(req.url);

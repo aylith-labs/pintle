@@ -1,4 +1,5 @@
 import { createServer, Socket } from "node:net";
+import { BASE_DOMAIN } from "./config";
 import * as log from "./logger";
 
 /**
@@ -121,6 +122,6 @@ export function startSniRouter(config: SniRouterConfig): void {
 		for (const target of config.forwardTargets) {
 			log.info(`  ${target.label} (passthrough, dynamic IP)`);
 		}
-		log.info(`  *.lvh.me -> localhost:${config.localTarget.port} (local TLS)`);
+		log.info(`  *.${BASE_DOMAIN} -> localhost:${config.localTarget.port} (local TLS)`);
 	});
 }

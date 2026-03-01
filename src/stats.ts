@@ -1,3 +1,5 @@
+import { DASHBOARD_HOST } from "./config";
+
 type RequestRecord = {
 	timestamp: number;
 	method: string;
@@ -41,7 +43,7 @@ function updateStats(map: Map<string, RouteStats>, key: string, record: RequestR
 
 export function recordRequest(record: RequestRecord): void {
 	// Skip proxy dashboard requests to avoid noise
-	if (record.hostname === "proxy.lvh.me") return;
+	if (record.hostname === DASHBOARD_HOST) return;
 
 	buffer.push(record);
 	if (buffer.length > MAX_BUFFER_SIZE) {

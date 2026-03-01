@@ -1,6 +1,6 @@
 # local-proxy
 
-A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` domains via SNI, auto-discovers Docker containers, and coexists with Traefik for `*.internal.example`.
+A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` (configurable) domains via SNI, auto-discovers Docker containers, and coexists with Traefik for `*.internal.example`.
 
 ## Architecture
 
@@ -18,8 +18,8 @@ A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` domains
 ```
 
 - **SNI routing** parses TLS ClientHello without terminating TLS, so Traefik keeps its own certificates
-- **iptables NAT** redirects standard ports to high ports, coexisting with Docker's port bindings
-- **mkcert** wildcard cert for `*.lvh.me` in `certs/`
+- **Port redirection** via iptables (Linux) or pfctl (macOS) redirects standard ports to high ports, coexisting with Docker's port bindings
+- **mkcert** wildcard cert for `*.lvh.me` (or custom `BASE_DOMAIN`) in `certs/`
 
 ## Prerequisites
 
@@ -31,19 +31,16 @@ A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` domains
 ## Setup
 
 ```bash
-# Generate wildcard certificate
+# Generate wildcard certificate (replace lvh.me with your BASE_DOMAIN if customized)
 mkcert -install
-mkcert "*.lvh.me"
-mkdir -p certs && mv *.lvh.me*.pem certs/
-
-# Rename to expected filenames
-mv certs/_wildcard.lvh.me.pem certs/lvh.me.pem
-mv certs/_wildcard.lvh.me-key.pem certs/lvh.me-key.pem
+mkcert -cert-file certs/lvh.me.pem -key-file certs/lvh.me-key.pem "*.lvh.me"
 
 # Install dependencies
 bun install
 cd ui && bun install
 ```
+
+Cert filenames must match `certs/${BASE_DOMAIN}.pem` and `certs/${BASE_DOMAIN}-key.pem`.
 
 ## Usage
 
@@ -134,6 +131,7 @@ Live architecture visualization at `https://proxy.lvh.me`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `BASE_DOMAIN` | `lvh.me` | Base domain for routing (`*.lvh.me`, `*.localtest.me`, etc.) |
 | `LISTEN_PORT` | `9443` | SNI router listen port |
 | `HTTP_PORT` | `9080` | HTTP redirect listen port |
 | `DOCKER_NETWORK` | `traefik` | Docker network for container discovery |
@@ -142,6 +140,7 @@ Live architecture visualization at `https://proxy.lvh.me`:
 
 ```
 src/
+  config.ts          BASE_DOMAIN and derived constants
   index.ts           Entry: HTTPS + HTTP servers, WebSocket proxy
   sni-router.ts      SNI-based TCP router (TLS ClientHello parsing)
   proxy.ts           HTTP reverse proxy with timing instrumentation
@@ -153,7 +152,7 @@ src/
 ui/                  React + Vite + Tailwind + React Flow dashboard
 routes.yaml          Static routes for non-Docker apps
 scripts/
-  start.sh           Add iptables rules + start proxy
-  stop.sh            Remove iptables rules
+  start.sh           Add port redirect rules (iptables/pfctl) + start proxy
+  stop.sh            Remove port redirect rules
 certs/               mkcert wildcard certs (not committed)
 ```

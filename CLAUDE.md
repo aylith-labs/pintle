@@ -1,13 +1,14 @@
 # local-proxy
 
 ## Project
-Bun-based HTTPS reverse proxy for `*.lvh.me` domains using mkcert certs.
+Bun-based HTTPS reverse proxy for `*.lvh.me` (configurable via `BASE_DOMAIN` env var) using mkcert certs.
 Replaces Traefik for personal projects only. Work apps continue using Traefik.
 
 ## Architecture
-- SNI router on :9443, iptables redirects 443→9443 and 80→9080
-- mkcert wildcard cert for `*.lvh.me` in `certs/`
-- SNI-based routing: `*.internal.example` → Traefik container IP (passthrough), `*.lvh.me` → local Bun HTTPS
+- SNI router on :9443, port redirection via iptables (Linux) or pfctl (macOS)
+- mkcert wildcard cert for `*.${BASE_DOMAIN}` in `certs/` (filenames: `${BASE_DOMAIN}.pem`, `${BASE_DOMAIN}-key.pem`)
+- SNI-based routing: `*.internal.example` → Traefik container IP (passthrough), `*.${BASE_DOMAIN}` → local Bun HTTPS
+- Dashboard at `proxy.${BASE_DOMAIN}` (derived from `BASE_DOMAIN`)
 - Docker auto-discovery via `proxy.*` labels on containers
 - Traefik container IP auto-discovered via Docker API
 - Static routes in `routes.yaml` for non-Docker apps (equivalent to Traefik's file provider)
@@ -23,12 +24,13 @@ labels:
 ```
 
 ## Commands
-- Dev: `bun run dev` (watches for changes, no iptables)
-- Start: `bun run start` (adds iptables rules, runs proxy)
+- Dev: `bun run dev` (watches for changes, no port redirection)
+- Start: `bun run start` (adds iptables/pfctl rules, runs proxy)
 - Lint: `bun run lint`
 - Type check: `bun run typecheck`
 
 ## Key Files
+- `src/config.ts` — `BASE_DOMAIN` and derived constants
 - `src/index.ts` — Entry: HTTPS + HTTP servers, WebSocket proxy
 - `src/proxy.ts` — HTTP request handler
 - `src/router.ts` — Route table (hostname+path -> target)
@@ -36,5 +38,5 @@ labels:
 - `src/docker-watcher.ts` — Docker event listener + container/Traefik discovery
 - `src/static-routes.ts` — YAML config loader
 - `routes.yaml` — Static routes for non-Docker apps
-- `scripts/start.sh` — iptables rules + start bun
-- `scripts/stop.sh` — remove iptables rules
+- `scripts/start.sh` — port redirect rules (iptables/pfctl) + start bun
+- `scripts/stop.sh` — remove port redirect rules

@@ -7,7 +7,7 @@ export default defineConfig({
 	server: {
 		port: 5175,
 		strictPort: true,
-		allowedHosts: ["proxy.lvh.me"],
+		allowedHosts: true,
 		hmr: {
 			// Connect HMR directly to Vite, bypassing the proxy's WebSocket relay
 			// Prevents ECONNRESET crashes when browser disconnects
