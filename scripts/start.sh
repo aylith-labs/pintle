@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "Note: 'docker compose up -d' is the recommended way to run local-proxy."
+echo "This script is for host-native mode (without Docker)."
+echo ""
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 

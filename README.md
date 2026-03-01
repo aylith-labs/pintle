@@ -5,7 +5,8 @@ A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` (config
 ## Architecture
 
 ```
-                        iptables/pfctl: 443 -> 9443, 80 -> 9080
+  Docker mode:  443 -> container:9443,  80 -> container:9080
+  Host-native:  iptables/pfctl 443 -> 9443,  80 -> 9080
 
   :443 ──> SNI Router (:9443) ──┬──> Bun HTTPS (:9444) ──> Docker/static services
            TLS ClientHello      │    *.lvh.me              home.lvh.me -> 172.19.0.6:5173
@@ -23,42 +24,55 @@ A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` (config
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) runtime
+- [Bun](https://bun.sh) runtime (for development and host-native mode)
 - [mkcert](https://github.com/FiloSottile/mkcert) for local TLS certificates
-- Docker (for container auto-discovery)
-- `sudo` access (for iptables/pfctl rules)
+- Docker (for container auto-discovery and recommended Docker mode)
+- `sudo` access (only for host-native mode — iptables/pfctl rules)
 
 ## Setup
 
 ```bash
-# Generate wildcard certificate (replace lvh.me with your BASE_DOMAIN if customized)
+# Install mkcert root CA (one-time)
 mkcert -install
+
+# Generate wildcard certificate (replace lvh.me with your BASE_DOMAIN if customized)
 mkcert -cert-file certs/lvh.me.pem -key-file certs/lvh.me-key.pem "*.lvh.me"
+
+# Optional: certs for passthrough domains (used as fallback when target proxy is unavailable)
+mkcert -cert-file certs/internal.example.pem -key-file certs/internal.example-key.pem "*.internal.example"
 
 # Install dependencies
 bun install
-cd ui && bun install
+cd ui && bun install && bun run build
 ```
 
-Cert filenames must match `certs/${BASE_DOMAIN}.pem` and `certs/${BASE_DOMAIN}-key.pem`.
+Cert filenames must match `certs/${BASE_DOMAIN}.pem` and `certs/${BASE_DOMAIN}-key.pem`. Passthrough domain certs are optional — if missing, local-proxy logs a warning and skips the fallback TLS entry.
 
 ## Usage
 
-### Development (no port redirection)
-
-Two terminals:
+### Docker (recommended)
 
 ```bash
-# Terminal 1: Backend (auto-restarts on changes)
-bun run dev
+# Stop any proxy binding ports 443/80 (Traefik, Caddy, etc.)
+docker stop traefik  # or: docker stop caddy
 
-# Terminal 2: Dashboard UI (Vite HMR)
-cd ui && bun run dev
+# Clean any leftover iptables rules from host-native mode
+sudo ./scripts/stop.sh
+
+# Start local-proxy
+docker compose up -d
 ```
 
-Access services at `https://localhost:9444` or configure port redirection for standard ports.
+Runs as a daemon with `restart: unless-stopped`. Docker handles port 443/80 binding — no sudo or iptables needed. Services are accessible at `https://home.lvh.me`, `https://proxy.lvh.me`, etc.
 
-### Production (with port redirection)
+Traefik keeps running (without host port bindings) — local-proxy passes through `*.internal.example` traffic to Traefik's container IP via SNI.
+
+Rebuild after code changes:
+```bash
+cd ui && bun run build && cd .. && docker compose up -d --build
+```
+
+### Host-native (alternative)
 
 ```bash
 # Adds iptables/pfctl rules, starts proxy, cleans up on exit
@@ -68,7 +82,28 @@ bun run start
 ./scripts/stop.sh
 ```
 
-With port redirection active, services are accessible at `https://home.lvh.me`, `https://proxy.lvh.me`, etc.
+### Comparison
+
+| | Docker | Host-native |
+|--|--------|-------------|
+| Port 443/80 | Docker handles binding | iptables/pfctl (requires sudo) |
+| Auto-start | `restart: unless-stopped` | Manual or systemd |
+| Code changes | `docker compose up -d --build` | Instant (bun --watch) |
+| Static routes | `host.docker.internal` (auto) | `localhost` (auto) |
+
+### Development
+
+Two terminals:
+
+```bash
+# Terminal 1: Backend (auto-restarts on changes, no port redirection)
+bun run dev
+
+# Terminal 2: Dashboard UI (Vite HMR)
+cd ui && bun run dev
+```
+
+Access services at `https://localhost:9444` or configure port redirection for standard ports.
 
 ## Routing
 
@@ -100,7 +135,7 @@ services:
       caddy.handle_path: /api/*          # path prefix + strip
 ```
 
-Label priority: `local-proxy.*` > `traefik.*` > `caddy`. If a container has multiple label formats, only the highest-priority one is used. Routes update automatically when containers start/stop.
+Label priority: `local-proxy.*` > `traefik.*` > `caddy*`. If a container has multiple label formats, only the highest-priority one is used. Routes update automatically when containers start/stop.
 
 ### Static routes (routes.yaml)
 
@@ -109,8 +144,12 @@ For non-Docker services, define routes in `routes.yaml` (auto-reloaded on change
 ```yaml
 routes:
   - host: linux-settings.lvh.me
-    target: http://localhost:5174
+    target: 5174                          # port-only: auto-resolves host
+  - host: remote-app.lvh.me
+    target: http://192.168.1.50:3000      # full URL: used as-is
 ```
+
+Port-only targets resolve to `localhost` (host-native) or `host.docker.internal` (Docker) automatically.
 
 ### Passthrough domains
 
@@ -131,12 +170,14 @@ mkcert -cert-file certs/internal.example.pem -key-file certs/internal.example-ke
 
 ## Coexistence with Traefik / Caddy
 
-local-proxy is designed to work **alongside** existing proxies, not replace them in production:
+local-proxy is designed to work **alongside** existing proxies, not replace them:
 
-- **Traefik/Caddy containers keep running** — local-proxy just becomes the entry point on port 443
+- **local-proxy takes over ports 443/80** — any existing proxy (Traefik, Caddy) must stop binding these ports (either `docker stop traefik` or remove `ports:` from its docker-compose)
+- **Traefik container keeps running** — it still serves traffic via its container IP. local-proxy passes through configured domains (e.g., `*.internal.example`) to Traefik at the TCP level without TLS termination
 - **No re-labeling needed** — local-proxy reads Traefik and Caddy labels natively
-- **Passthrough for separate domains** — domains managed by another proxy are forwarded at the TCP level without TLS termination
 - **Gradual migration** — you can move services one at a time from Traefik/Caddy labels to `local-proxy.*` labels, or keep using the original labels indefinitely
+
+To switch back to Traefik as the entry point: `docker compose down` (local-proxy) then `docker start traefik`.
 
 ### What local-proxy is NOT
 
@@ -149,6 +190,10 @@ local-proxy is a **local development tool**. It is not a replacement for Traefik
 - Single-threaded Bun runtime (not designed for high concurrency)
 
 For anything beyond local dev routing, use Traefik or Caddy directly.
+
+## Docs
+
+- [Privileged Ports](docs/privileged-ports.md) — Why local-proxy uses iptables/pfctl and how other approaches (setcap, authbind, sysctl, Docker) compare
 
 ## Dashboard
 
@@ -163,8 +208,9 @@ Live architecture visualization at `https://proxy.lvh.me`:
 
 | Command | Description |
 |---------|-------------|
+| `docker compose up -d` | Docker: daemon mode with port binding (recommended) |
 | `bun run dev` | Watch mode, backend only (no port redirection) |
-| `bun run start` | Production: port redirection + proxy (requires sudo) |
+| `bun run start` | Host-native: port redirection + proxy (requires sudo) |
 | `bun run lint` | Format and lint with Biome |
 | `bun run typecheck` | TypeScript strict mode check |
 | `cd ui && bun run dev` | Dashboard UI with Vite HMR |
@@ -188,7 +234,7 @@ src/
   sni-router.ts      SNI-based TCP router (TLS ClientHello parsing)
   proxy.ts           HTTP reverse proxy with timing instrumentation
   router.ts          Route table (hostname+path -> target)
-  docker-watcher.ts  Docker event listener + container discovery (local-proxy/traefik/caddy labels)
+  docker-watcher.ts  Docker event listener + container discovery (local-proxy/Traefik/Caddy labels)
   static-routes.ts   YAML config loader with file watcher (routes + passthrough)
   api.ts             Dashboard API + Vite dev server proxy
   stats.ts           In-memory request metrics

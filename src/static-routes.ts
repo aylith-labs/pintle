@@ -1,7 +1,14 @@
 import { readFileSync, watchFile } from 'node:fs';
 import { parse } from 'yaml';
+import { HOST_ADDRESS } from './config';
 import * as log from './logger';
 import type { PassthroughConfig, Route, StaticRouteConfig } from './types';
+
+function resolveTarget(target: string | number): string {
+	if (typeof target === 'number') return `http://${HOST_ADDRESS}:${target}`;
+	if (/^\d+$/.test(target)) return `http://${HOST_ADDRESS}:${target}`;
+	return target;
+}
 
 let currentRoutes: Route[] = [];
 let currentPassthrough: PassthroughConfig[] = [];
@@ -20,7 +27,7 @@ function loadFile(filePath: string): { routes: Route[]; passthrough: Passthrough
 		const routes = (parsed?.routes ?? []).map((r) => ({
 			hostname: r.host,
 			path: r.path ?? '/',
-			target: r.target,
+			target: resolveTarget(r.target),
 			stripPath: r.strip ?? false,
 			source: 'static' as const,
 		}));

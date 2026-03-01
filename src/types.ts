@@ -9,7 +9,7 @@ export type Route = {
 
 export type StaticRouteConfig = {
 	host: string;
-	target: string;
+	target: string | number;
 	path?: string;
 	strip?: boolean;
 };

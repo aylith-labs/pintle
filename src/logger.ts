@@ -31,6 +31,10 @@ export function routeChange(action: 'add' | 'remove', hostname: string, path: st
 	);
 }
 
+export function warn(msg: string): void {
+	console.log(`${colors.dim}${timestamp()}${colors.reset} ${colors.yellow}WARN${colors.reset}  ${msg}`);
+}
+
 export function error(msg: string, err?: unknown): void {
 	console.error(`${colors.dim}${timestamp()}${colors.reset} ${colors.red}ERROR${colors.reset} ${msg}`, err ?? '');
 }

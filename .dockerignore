@@ -1,0 +1,8 @@
+node_modules
+certs
+.claude
+docs
+scripts
+ui/node_modules
+ui/src
+*.md

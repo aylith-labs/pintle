@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import type { ServerWebSocket } from 'bun';
 import { handleApiRequest } from './api';
@@ -43,6 +44,12 @@ function buildPassthroughTls(): {
 	for (const pt of getPassthroughDomains()) {
 		const certPath = resolvePath(CERTS_DIR, `${pt.domain}.pem`);
 		const keyPath = resolvePath(CERTS_DIR, `${pt.domain}-key.pem`);
+		if (!existsSync(certPath) || !existsSync(keyPath)) {
+			log.warn(
+				`Passthrough cert missing for *.${pt.domain} (run: mkcert -cert-file certs/${pt.domain}.pem -key-file certs/${pt.domain}-key.pem "*.${pt.domain}")`,
+			);
+			continue;
+		}
 		entries.push({
 			cert: Bun.file(certPath),
 			key: Bun.file(keyPath),
