@@ -18,4 +18,3 @@ export type PassthroughConfig = {
 	domain: string;
 	target: 'traefik';
 };
-

@@ -38,7 +38,7 @@ export function Abbr({ children, title }: { children: string; title?: string }) 
 	}, []);
 
 	return (
-		<span ref={ref} className="relative inline-block group/abbr" onMouseEnter={handleMouseEnter}>
+		<dfn ref={ref} className="relative inline-block group/abbr not-italic" onMouseEnter={handleMouseEnter}>
 			<span className="border-b border-dotted border-current cursor-help">{children}</span>
 			<span
 				ref={tooltipRef}
@@ -49,6 +49,6 @@ export function Abbr({ children, title }: { children: string; title?: string }) 
 			>
 				{tooltipText}
 			</span>
-		</span>
+		</dfn>
 	);
 }
