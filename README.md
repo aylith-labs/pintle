@@ -9,7 +9,7 @@ A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` (config
 
   :443 ──> SNI Router (:9443) ──┬──> Bun HTTPS (:9444) ──> Docker/static services
            TLS ClientHello      │    *.lvh.me              home.lvh.me -> 172.19.0.6:5173
-           hostname parsing     │                          dotfiles.lvh.me -> localhost:5174
+           hostname parsing     │                          linux-settings.lvh.me -> localhost:5174
                                 │
                                 └──> Traefik (TCP passthrough)
                                      *.internal.example -> 172.19.0.2:443
@@ -88,7 +88,24 @@ services:
       proxy.strip: "true"             # optional: strip path prefix before forwarding
 ```
 
-Routes update automatically when containers start/stop.
+Containers with Traefik labels (`traefik.enable=true`) or Caddy labels (`caddy`) are also auto-discovered:
+
+```yaml
+# Traefik labels
+labels:
+  traefik.enable: "true"
+  traefik.http.routers.my-app.rule: "Host(`my-app.lvh.me`) && PathPrefix(`/api`)"
+  traefik.http.services.my-app.loadbalancer.server.port: "5173"
+  traefik.http.middlewares.my-app-strip.stripprefix.prefixes: /api
+
+# Caddy labels (caddy-docker-proxy format)
+labels:
+  caddy: my-app.lvh.me
+  caddy.reverse_proxy: "{{upstreams 5173}}"
+  caddy.handle_path: /api/*                # path prefix + strip
+```
+
+Label priority: `proxy.*` > `traefik.*` > `caddy`. Routes update automatically when containers start/stop.
 
 ### Static routes (routes.yaml)
 
@@ -96,11 +113,8 @@ For non-Docker services, define routes in `routes.yaml` (auto-reloaded on change
 
 ```yaml
 routes:
-  - host: dotfiles.lvh.me
+  - host: linux-settings.lvh.me
     target: http://localhost:5174
-
-  - host: settings.lvh.me
-    target: http://localhost:5173
 ```
 
 ### Traefik coexistence

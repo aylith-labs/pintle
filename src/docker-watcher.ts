@@ -76,10 +76,69 @@ function parseTraefikLabels(labels: Record<string, string>): {
 	return { hosts, port, path, strip };
 }
 
+function parseCaddyLabels(labels: Record<string, string>): {
+	hosts: string[];
+	port: number | null;
+	path: string;
+	strip: boolean;
+}[] {
+	// Caddy labels use `caddy` or `caddy_N` prefixes for multi-domain
+	const configs = new Map<string, { host: string | null; port: number | null; path: string; strip: boolean }>();
+
+	// Find all caddy prefixes (caddy, caddy_0, caddy_1, ...)
+	for (const [key, value] of Object.entries(labels)) {
+		const prefixMatch = key.match(/^(caddy(?:_\d+)?)$/);
+		if (prefixMatch) {
+			const prefix = prefixMatch[1];
+			configs.set(prefix, { host: value, port: null, path: "/", strip: false });
+		}
+	}
+
+	if (configs.size === 0) return [];
+
+	// Parse directives for each prefix
+	for (const [key, value] of Object.entries(labels)) {
+		for (const [prefix, config] of configs) {
+			// Port from reverse_proxy: {{upstreams PORT}} or {{upstreams http PORT}}
+			if (key === `${prefix}.reverse_proxy`) {
+				const portMatch = value.match(/\{\{upstreams(?:\s+https?)?\s+(\d+)\}\}/);
+				if (portMatch) {
+					config.port = Number.parseInt(portMatch[1], 10);
+				}
+			}
+
+			// Path with strip: handle_path
+			if (key === `${prefix}.handle_path`) {
+				config.path = value.replace(/\/?\*$/, "") || "/";
+				config.strip = true;
+			}
+
+			// Path without strip: handle
+			if (key === `${prefix}.handle` && config.path === "/") {
+				config.path = value.replace(/\/?\*$/, "") || "/";
+			}
+		}
+	}
+
+	// Convert to results, filtering out entries without a host
+	const results: { hosts: string[]; port: number | null; path: string; strip: boolean }[] = [];
+	for (const config of configs.values()) {
+		if (!config.host) continue;
+		results.push({
+			hosts: [config.host],
+			port: config.port,
+			path: config.path,
+			strip: config.strip,
+		});
+	}
+
+	return results;
+}
+
 function resolveContainerRoute(
 	containerInfo: Docker.ContainerInfo,
 	parsed: { hosts: string[]; port: number | null; path: string; strip: boolean },
-	source: "docker" | "traefik",
+	source: "docker" | "traefik" | "caddy",
 ): Route[] {
 	const networks = containerInfo.NetworkSettings?.Networks ?? {};
 	const networkInfo = networks[NETWORK_NAME];
@@ -147,19 +206,52 @@ async function discoverTraefikRoutes(excludeContainers: Set<string>): Promise<Ro
 	return routes;
 }
 
+async function discoverCaddyRoutes(excludeContainers: Set<string>): Promise<Route[]> {
+	// List all containers and check for caddy/caddy_N labels
+	const containers = await docker.listContainers();
+
+	const routes: Route[] = [];
+	for (const containerInfo of containers) {
+		const name = containerInfo.Names[0]?.replace(/^\//, "") ?? "unknown";
+		if (excludeContainers.has(name)) continue;
+
+		const hasCaddyLabel = Object.keys(containerInfo.Labels).some((k) => /^caddy(_\d+)?$/.test(k));
+		if (!hasCaddyLabel) continue;
+
+		const parsedList = parseCaddyLabels(containerInfo.Labels);
+		for (const parsed of parsedList) {
+			routes.push(...resolveContainerRoute(containerInfo, parsed, "caddy"));
+		}
+	}
+	return routes;
+}
+
 async function discoverAllRoutes(): Promise<Route[]> {
-	// Proxy labels take precedence
+	// Proxy labels take precedence, then traefik, then caddy
 	const proxyRoutes = await discoverProxyRoutes();
 
 	const proxyContainers = new Set(proxyRoutes.map((r) => r.containerName).filter(Boolean) as string[]);
 
 	const traefikRoutes = await discoverTraefikRoutes(proxyContainers);
 
-	if (traefikRoutes.length > 0) {
-		log.info(`Discovered ${proxyRoutes.length} proxy + ${traefikRoutes.length} traefik route(s)`);
+	const handledContainers = new Set([
+		...proxyContainers,
+		...(traefikRoutes.map((r) => r.containerName).filter(Boolean) as string[]),
+	]);
+
+	const caddyRoutes = await discoverCaddyRoutes(handledContainers);
+
+	const counts = [
+		proxyRoutes.length > 0 ? `${proxyRoutes.length} proxy` : null,
+		traefikRoutes.length > 0 ? `${traefikRoutes.length} traefik` : null,
+		caddyRoutes.length > 0 ? `${caddyRoutes.length} caddy` : null,
+	].filter(Boolean);
+
+	if (counts.length > 1) {
+		log.info(`Discovered ${counts.join(" + ")} route(s)`);
 	}
 
-	return [...proxyRoutes, ...traefikRoutes];
+	return [...proxyRoutes, ...traefikRoutes, ...caddyRoutes];
 }
 
 function scheduleRebuild(): void {

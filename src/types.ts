@@ -3,7 +3,7 @@ export type Route = {
 	path: string;
 	target: string;
 	stripPath: boolean;
-	source: "docker" | "static" | "traefik";
+	source: "docker" | "static" | "traefik" | "caddy";
 	containerName?: string;
 };
 
