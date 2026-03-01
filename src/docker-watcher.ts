@@ -1,6 +1,6 @@
-import Docker from "dockerode";
-import * as log from "./logger";
-import type { Route } from "./types";
+import Docker from 'dockerode';
+import * as log from './logger';
+import type { Route } from './types';
 
 const docker = new Docker();
 
@@ -9,7 +9,7 @@ let onChange: (() => void) | null = null;
 let rebuildTimer: ReturnType<typeof setTimeout> | null = null;
 let traefikIp: string | null = null;
 
-const NETWORK_NAME = process.env.DOCKER_NETWORK ?? "traefik";
+const NETWORK_NAME = process.env.DOCKER_NETWORK ?? 'traefik';
 
 function parseProxyLabels(labels: Record<string, string>): {
 	hosts: string[];
@@ -17,14 +17,14 @@ function parseProxyLabels(labels: Record<string, string>): {
 	path: string;
 	strip: boolean;
 } | null {
-	const hostLabel = labels["proxy.host"];
+	const hostLabel = labels['local-proxy.host'];
 	if (!hostLabel) return null;
 
 	return {
-		hosts: hostLabel.split(",").map((h) => h.trim()),
-		port: labels["proxy.port"] ? Number.parseInt(labels["proxy.port"], 10) : null,
-		path: labels["proxy.path"] ?? "/",
-		strip: labels["proxy.strip"] === "true",
+		hosts: hostLabel.split(',').map((h) => h.trim()),
+		port: labels['local-proxy.port'] ? Number.parseInt(labels['local-proxy.port'], 10) : null,
+		path: labels['local-proxy.path'] ?? '/',
+		strip: labels['local-proxy.strip'] === 'true',
 	};
 }
 
@@ -34,7 +34,7 @@ function parseTraefikLabels(labels: Record<string, string>): {
 	path: string;
 	strip: boolean;
 } | null {
-	if (labels["traefik.enable"] !== "true") return null;
+	if (labels['traefik.enable'] !== 'true') return null;
 
 	// Find router rule: traefik.http.routers.<NAME>.rule
 	let ruleValue: string | null = null;
@@ -53,7 +53,7 @@ function parseTraefikLabels(labels: Record<string, string>): {
 
 	// Parse optional PathPrefix(`...`)
 	const pathMatch = ruleValue.match(/PathPrefix\(`([^`]+)`\)/);
-	const path = pathMatch ? pathMatch[1] : "/";
+	const path = pathMatch ? pathMatch[1] : '/';
 
 	// Find port: traefik.http.services.<NAME>.loadbalancer.server.port
 	let port: number | null = null;
@@ -90,7 +90,7 @@ function parseCaddyLabels(labels: Record<string, string>): {
 		const prefixMatch = key.match(/^(caddy(?:_\d+)?)$/);
 		if (prefixMatch) {
 			const prefix = prefixMatch[1];
-			configs.set(prefix, { host: value, port: null, path: "/", strip: false });
+			configs.set(prefix, { host: value, port: null, path: '/', strip: false });
 		}
 	}
 
@@ -109,13 +109,13 @@ function parseCaddyLabels(labels: Record<string, string>): {
 
 			// Path with strip: handle_path
 			if (key === `${prefix}.handle_path`) {
-				config.path = value.replace(/\/?\*$/, "") || "/";
+				config.path = value.replace(/\/?\*$/, '') || '/';
 				config.strip = true;
 			}
 
 			// Path without strip: handle
-			if (key === `${prefix}.handle` && config.path === "/") {
-				config.path = value.replace(/\/?\*$/, "") || "/";
+			if (key === `${prefix}.handle` && config.path === '/') {
+				config.path = value.replace(/\/?\*$/, '') || '/';
 			}
 		}
 	}
@@ -138,11 +138,11 @@ function parseCaddyLabels(labels: Record<string, string>): {
 function resolveContainerRoute(
 	containerInfo: Docker.ContainerInfo,
 	parsed: { hosts: string[]; port: number | null; path: string; strip: boolean },
-	source: "docker" | "traefik" | "caddy",
+	source: 'docker' | 'traefik' | 'caddy',
 ): Route[] {
 	const networks = containerInfo.NetworkSettings?.Networks ?? {};
 	const networkInfo = networks[NETWORK_NAME];
-	const name = containerInfo.Names[0]?.replace(/^\//, "") ?? "unknown";
+	const name = containerInfo.Names[0]?.replace(/^\//, '') ?? 'unknown';
 
 	if (!networkInfo?.IPAddress) {
 		log.error(`Container ${name} (${source}) has no IP on network '${NETWORK_NAME}'`);
@@ -172,36 +172,36 @@ function resolveContainerRoute(
 
 async function discoverProxyRoutes(): Promise<Route[]> {
 	const containers = await docker.listContainers({
-		filters: { label: ["proxy.host"] },
+		filters: { label: ['local-proxy.host'] },
 	});
 
 	const routes: Route[] = [];
 	for (const containerInfo of containers) {
 		const parsed = parseProxyLabels(containerInfo.Labels);
 		if (!parsed) continue;
-		routes.push(...resolveContainerRoute(containerInfo, parsed, "docker"));
+		routes.push(...resolveContainerRoute(containerInfo, parsed, 'docker'));
 	}
 	return routes;
 }
 
 async function discoverTraefikRoutes(excludeContainers: Set<string>): Promise<Route[]> {
 	const containers = await docker.listContainers({
-		filters: { label: ["traefik.enable=true"] },
+		filters: { label: ['traefik.enable=true'] },
 	});
 
 	const routes: Route[] = [];
 	for (const containerInfo of containers) {
-		const name = containerInfo.Names[0]?.replace(/^\//, "") ?? "unknown";
+		const name = containerInfo.Names[0]?.replace(/^\//, '') ?? 'unknown';
 
 		// Skip containers already handled by proxy.* labels
 		if (excludeContainers.has(name)) continue;
 
 		// Skip the Traefik container itself
-		if (containerInfo.Image.includes("traefik")) continue;
+		if (containerInfo.Image.includes('traefik')) continue;
 
 		const parsed = parseTraefikLabels(containerInfo.Labels);
 		if (!parsed) continue;
-		routes.push(...resolveContainerRoute(containerInfo, parsed, "traefik"));
+		routes.push(...resolveContainerRoute(containerInfo, parsed, 'traefik'));
 	}
 	return routes;
 }
@@ -212,7 +212,7 @@ async function discoverCaddyRoutes(excludeContainers: Set<string>): Promise<Rout
 
 	const routes: Route[] = [];
 	for (const containerInfo of containers) {
-		const name = containerInfo.Names[0]?.replace(/^\//, "") ?? "unknown";
+		const name = containerInfo.Names[0]?.replace(/^\//, '') ?? 'unknown';
 		if (excludeContainers.has(name)) continue;
 
 		const hasCaddyLabel = Object.keys(containerInfo.Labels).some((k) => /^caddy(_\d+)?$/.test(k));
@@ -220,7 +220,7 @@ async function discoverCaddyRoutes(excludeContainers: Set<string>): Promise<Rout
 
 		const parsedList = parseCaddyLabels(containerInfo.Labels);
 		for (const parsed of parsedList) {
-			routes.push(...resolveContainerRoute(containerInfo, parsed, "caddy"));
+			routes.push(...resolveContainerRoute(containerInfo, parsed, 'caddy'));
 		}
 	}
 	return routes;
@@ -248,7 +248,7 @@ async function discoverAllRoutes(): Promise<Route[]> {
 	].filter(Boolean);
 
 	if (counts.length > 1) {
-		log.info(`Discovered ${counts.join(" + ")} route(s)`);
+		log.info(`Discovered ${counts.join(' + ')} route(s)`);
 	}
 
 	return [...proxyRoutes, ...traefikRoutes, ...caddyRoutes];
@@ -262,7 +262,7 @@ function scheduleRebuild(): void {
 			await discoverTraefik();
 			onChange?.();
 		} catch (err) {
-			log.error("Failed to rebuild Docker routes", err);
+			log.error('Failed to rebuild Docker routes', err);
 		}
 	}, 300);
 }
@@ -280,7 +280,7 @@ async function discoverTraefik(): Promise<void> {
 	try {
 		const containers = await docker.listContainers();
 		for (const c of containers) {
-			if (c.Image.includes("traefik")) {
+			if (c.Image.includes('traefik')) {
 				const networks = c.NetworkSettings?.Networks ?? {};
 				const networkInfo = networks[NETWORK_NAME];
 				if (networkInfo?.IPAddress) {
@@ -294,7 +294,7 @@ async function discoverTraefik(): Promise<void> {
 			}
 		}
 		if (traefikIp) {
-			log.info("Traefik container not found, clearing cached IP");
+			log.info('Traefik container not found, clearing cached IP');
 			traefikIp = null;
 		}
 	} catch {
@@ -311,30 +311,30 @@ export async function initDockerWatcher(onUpdate: () => void): Promise<void> {
 		await discoverTraefik();
 		log.info(`Discovered ${currentRoutes.length} Docker route(s) on network '${NETWORK_NAME}'`);
 	} catch (err) {
-		log.error("Failed initial Docker discovery", err);
+		log.error('Failed initial Docker discovery', err);
 	}
 
 	// Watch for container events
 	try {
 		const stream = await docker.getEvents({
 			filters: {
-				type: ["container"],
-				event: ["start", "stop", "die", "destroy"],
+				type: ['container'],
+				event: ['start', 'stop', 'die', 'destroy'],
 			},
 		});
 
-		stream.on("data", () => {
+		stream.on('data', () => {
 			scheduleRebuild();
 		});
 
-		stream.on("error", (err) => {
-			log.error("Docker event stream error", err);
+		stream.on('error', (err) => {
+			log.error('Docker event stream error', err);
 			// Reconnect after delay
 			setTimeout(() => initDockerWatcher(onUpdate), 5000);
 		});
 
-		log.info("Watching Docker events for container changes");
+		log.info('Watching Docker events for container changes');
 	} catch (err) {
-		log.error("Failed to watch Docker events", err);
+		log.error('Failed to watch Docker events', err);
 	}
 }

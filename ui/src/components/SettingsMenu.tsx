@@ -1,7 +1,7 @@
-import { ArrowCounterClockwise, GearSix, Monitor, Moon, Sun } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowCounterClockwise, GearSix, Monitor, Moon, Sun } from '@phosphor-icons/react';
+import { useEffect, useRef, useState } from 'react';
 
-type Theme = "system" | "light" | "dark";
+type Theme = 'system' | 'light' | 'dark';
 
 type SettingsMenuProps = {
 	theme: Theme;
@@ -13,9 +13,9 @@ type SettingsMenuProps = {
 };
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
-	{ value: "light", icon: Sun, label: "Light" },
-	{ value: "dark", icon: Moon, label: "Dark" },
-	{ value: "system", icon: Monitor, label: "System" },
+	{ value: 'light', icon: Sun, label: 'Light' },
+	{ value: 'dark', icon: Moon, label: 'Dark' },
+	{ value: 'system', icon: Monitor, label: 'System' },
 ];
 
 export function SettingsMenu({ theme, setTheme, fontSize, onIncrease, onDecrease, onReset }: SettingsMenuProps) {
@@ -29,8 +29,8 @@ export function SettingsMenu({ theme, setTheme, fontSize, onIncrease, onDecrease
 				setOpen(false);
 			}
 		}
-		document.addEventListener("mousedown", handleClick);
-		return () => document.removeEventListener("mousedown", handleClick);
+		document.addEventListener('mousedown', handleClick);
+		return () => document.removeEventListener('mousedown', handleClick);
 	}, [open]);
 
 	return (
@@ -61,11 +61,11 @@ export function SettingsMenu({ theme, setTheme, fontSize, onIncrease, onDecrease
 										onClick={() => setTheme(opt.value)}
 										className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[0.625rem] font-medium transition-colors ${
 											isActive
-												? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-												: "text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+												? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+												: 'text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
 										}`}
 									>
-										<Icon size={13} weight={isActive ? "bold" : "regular"} />
+										<Icon size={13} weight={isActive ? 'bold' : 'regular'} />
 										{opt.label}
 									</button>
 								);

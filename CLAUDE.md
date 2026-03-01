@@ -1,15 +1,17 @@
 # local-proxy
 
 ## Project
-Bun-based HTTPS reverse proxy for `*.lvh.me` (configurable via `BASE_DOMAIN` env var) using mkcert certs.
-Replaces Traefik for personal projects only. Work apps continue using Traefik.
+Bun-based HTTPS reverse proxy for local development only (not CI/production).
+Configurable via `BASE_DOMAIN` env var (default: `lvh.me`), uses mkcert certs.
+Coexists with Traefik/Caddy via SNI passthrough for configured domains.
 
 ## Architecture
 - SNI router on :9443, port redirection via iptables (Linux) or pfctl (macOS)
 - mkcert wildcard cert for `*.${BASE_DOMAIN}` in `certs/` (filenames: `${BASE_DOMAIN}.pem`, `${BASE_DOMAIN}-key.pem`)
-- SNI-based routing: `*.internal.example` → Traefik container IP (passthrough), `*.${BASE_DOMAIN}` → local Bun HTTPS
-- Dashboard at `proxy.${BASE_DOMAIN}` (derived from `BASE_DOMAIN`)
-- Docker auto-discovery via `proxy.*`, `traefik.*`, and `caddy` labels (priority: proxy > traefik > caddy)
+- SNI-based routing: passthrough domains → target proxy (TCP, no TLS termination), `*.${BASE_DOMAIN}` → local Bun HTTPS
+- Passthrough domains configured in `routes.yaml` (not hardcoded)
+- Dashboard at `proxy.${BASE_DOMAIN}`
+- Docker auto-discovery via `local-proxy.*`, `traefik.*`, and `caddy` labels (priority: local-proxy > traefik > caddy)
 - Traefik container IP auto-discovered via Docker API
 - Static routes in `routes.yaml` for non-Docker apps (equivalent to Traefik's file provider)
 - WebSocket proxying for Vite HMR
@@ -18,10 +20,10 @@ Replaces Traefik for personal projects only. Work apps continue using Traefik.
 ```yaml
 # Native format (preferred)
 labels:
-  - proxy.host=app.lvh.me          # required: hostname(s), comma-separated
-  - proxy.port=5173                # optional: defaults to first EXPOSE port
-  - proxy.path=/api                # optional: path prefix match
-  - proxy.strip=true               # optional: strip path prefix
+  - local-proxy.host=app.lvh.me      # required: hostname(s), comma-separated
+  - local-proxy.port=5173            # optional: defaults to first EXPOSE port
+  - local-proxy.path=/api            # optional: path prefix match
+  - local-proxy.strip=true           # optional: strip path prefix
 
 # Traefik format (also supported)
 labels:
@@ -49,8 +51,8 @@ labels:
 - `src/proxy.ts` — HTTP request handler
 - `src/router.ts` — Route table (hostname+path -> target)
 - `src/sni-router.ts` — SNI-based TCP router (TLS ClientHello parsing)
-- `src/docker-watcher.ts` — Docker event listener + container discovery (proxy/traefik/caddy labels)
-- `src/static-routes.ts` — YAML config loader
-- `routes.yaml` — Static routes for non-Docker apps
+- `src/docker-watcher.ts` — Docker event listener + container discovery (local-proxy/traefik/caddy labels)
+- `src/static-routes.ts` — YAML config loader (routes + passthrough domains)
+- `routes.yaml` — Static routes + passthrough domains
 - `scripts/start.sh` — port redirect rules (iptables/pfctl) + start bun
 - `scripts/stop.sh` — remove port redirect rules

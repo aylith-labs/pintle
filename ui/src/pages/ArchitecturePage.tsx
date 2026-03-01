@@ -1,5 +1,5 @@
-import { ArrowRight, FlowArrow } from "@phosphor-icons/react";
-import { Abbr } from "../components/Abbr";
+import { ArrowRight, FlowArrow } from '@phosphor-icons/react';
+import { Abbr } from '../components/Abbr';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
 	return (
@@ -44,7 +44,7 @@ export function ArchitecturePage() {
 			{/* Overview */}
 			<Section title="Overview">
 				<p>
-					local-proxy is a <Abbr>HTTPS</Abbr> reverse proxy for local development. It routes <code>*.lvh.me</code>{" "}
+					local-proxy is a <Abbr>HTTPS</Abbr> reverse proxy for local development. It routes <code>*.lvh.me</code>{' '}
 					domains through a Bun-powered server and passes <code>*.internal.example</code> traffic through to Traefik
 					when available. All traffic flows through a single entry point on port 443 using <Abbr>SNI</Abbr>-based
 					routing.
@@ -74,7 +74,7 @@ export function ArchitecturePage() {
 				<p>
 					<Abbr>SNI</Abbr> (Server Name Indication) is a <Abbr>TLS</Abbr> extension that sends the target hostname in
 					plaintext during the <Abbr>TLS</Abbr> handshake — before encryption begins. The <Abbr>SNI</Abbr> router
-					inspects the first <Abbr>TLS</Abbr> ClientHello packet, extracts the hostname, and pipes the raw{" "}
+					inspects the first <Abbr>TLS</Abbr> ClientHello packet, extracts the hostname, and pipes the raw{' '}
 					<Abbr>TCP</Abbr> connection to the right backend.
 				</p>
 				<p>
@@ -98,7 +98,7 @@ export function ArchitecturePage() {
 					</li>
 				</ul>
 				<p>
-					<code>lvh.me</code> is a special domain that resolves all subdomains to <code>127.0.0.1</code> via public{" "}
+					<code>lvh.me</code> is a special domain that resolves all subdomains to <code>127.0.0.1</code> via public{' '}
 					<Abbr>DNS</Abbr>, eliminating the need for <code>/etc/hosts</code> entries.
 				</p>
 			</Section>
@@ -178,12 +178,12 @@ export function ArchitecturePage() {
 			{/* Traefik Fallback */}
 			<Section title="Traefik Fallback">
 				<p>
-					When Traefik is running, <code>*.internal.example</code> traffic passes through to it via <Abbr>TCP</Abbr>{" "}
+					When Traefik is running, <code>*.internal.example</code> traffic passes through to it via <Abbr>TCP</Abbr>{' '}
 					passthrough. Traefik handles <Abbr>TLS</Abbr> termination with its own certificates.
 				</p>
 				<p>
-					When Traefik is <strong>not running</strong>, the <Abbr>SNI</Abbr> router falls back to the local Bun{" "}
-					<Abbr>HTTPS</Abbr> server. Containers with Traefik labels are auto-discovered and routed directly using{" "}
+					When Traefik is <strong>not running</strong>, the <Abbr>SNI</Abbr> router falls back to the local Bun{' '}
+					<Abbr>HTTPS</Abbr> server. Containers with Traefik labels are auto-discovered and routed directly using{' '}
 					<Abbr>mkcert</Abbr> certificates. No configuration change needed — just stop Traefik and everything still
 					works.
 				</p>

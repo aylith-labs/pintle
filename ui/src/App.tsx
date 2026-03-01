@@ -1,20 +1,20 @@
-import { BookOpen, ChartLine, FlowArrow, ListBullets, ListMagnifyingGlass, Plugs } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState } from "react";
-import { SettingsMenu } from "./components/SettingsMenu";
-import { useFontSize, useStats, useTheme, useTopology } from "./hooks";
-import { ActivityPage } from "./pages/ActivityPage";
-import { ArchitecturePage } from "./pages/ArchitecturePage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { EndpointsPage } from "./pages/EndpointsPage";
-import { GlossaryPage } from "./pages/GlossaryPage";
+import { BookOpen, ChartLine, FlowArrow, ListBullets, ListMagnifyingGlass, Plugs } from '@phosphor-icons/react';
+import { useCallback, useEffect, useState } from 'react';
+import { SettingsMenu } from './components/SettingsMenu';
+import { useFontSize, useStats, useTheme, useTopology } from './hooks';
+import { ActivityPage } from './pages/ActivityPage';
+import { ArchitecturePage } from './pages/ArchitecturePage';
+import { DashboardPage } from './pages/DashboardPage';
+import { EndpointsPage } from './pages/EndpointsPage';
+import { GlossaryPage } from './pages/GlossaryPage';
 
-type Page = "dashboard" | "activity" | "architecture" | "glossary" | "endpoints";
+type Page = 'dashboard' | 'activity' | 'architecture' | 'glossary' | 'endpoints';
 
-const pages = ["dashboard", "activity", "architecture", "glossary", "endpoints"] as const satisfies readonly Page[];
+const pages = ['dashboard', 'activity', 'architecture', 'glossary', 'endpoints'] as const satisfies readonly Page[];
 
 function hashToPage(hash: string): Page {
-	const path = hash.replace("#/", "") as Page;
-	return pages.includes(path) ? path : "dashboard";
+	const path = hash.replace('#/', '') as Page;
+	return pages.includes(path) ? path : 'dashboard';
 }
 
 function useRoute(): { page: Page; navigate: (p: Page) => void } {
@@ -24,23 +24,23 @@ function useRoute(): { page: Page; navigate: (p: Page) => void } {
 		function onHashChange() {
 			setPage(hashToPage(window.location.hash));
 		}
-		window.addEventListener("hashchange", onHashChange);
-		return () => window.removeEventListener("hashchange", onHashChange);
+		window.addEventListener('hashchange', onHashChange);
+		return () => window.removeEventListener('hashchange', onHashChange);
 	}, []);
 
 	const navigate = useCallback((p: Page) => {
-		window.location.hash = p === "dashboard" ? "#/" : `#/${p}`;
+		window.location.hash = p === 'dashboard' ? '#/' : `#/${p}`;
 	}, []);
 
 	return { page, navigate };
 }
 
 const navItems: { page: Page; label: string; icon: typeof ChartLine }[] = [
-	{ page: "dashboard", label: "Dashboard", icon: ChartLine },
-	{ page: "activity", label: "Activity", icon: ListMagnifyingGlass },
-	{ page: "architecture", label: "Architecture", icon: BookOpen },
-	{ page: "glossary", label: "Glossary", icon: ListBullets },
-	{ page: "endpoints", label: "Endpoints", icon: Plugs },
+	{ page: 'dashboard', label: 'Dashboard', icon: ChartLine },
+	{ page: 'activity', label: 'Activity', icon: ListMagnifyingGlass },
+	{ page: 'architecture', label: 'Architecture', icon: BookOpen },
+	{ page: 'glossary', label: 'Glossary', icon: ListBullets },
+	{ page: 'endpoints', label: 'Endpoints', icon: Plugs },
 ];
 
 export function App() {
@@ -81,11 +81,11 @@ export function App() {
 										onClick={() => navigate(item.page)}
 										className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[0.6875rem] font-medium transition-colors ${
 											isActive
-												? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-												: "text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+												? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+												: 'text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
 										}`}
 									>
-										<Icon size={13} weight={isActive ? "bold" : "regular"} />
+										<Icon size={13} weight={isActive ? 'bold' : 'regular'} />
 										{item.label}
 									</button>
 								);
@@ -106,11 +106,11 @@ export function App() {
 
 			{/* Content */}
 			<main className="px-4 pt-4 pb-3 space-y-3">
-				{page === "dashboard" && <DashboardPage topology={topology} stats={stats} />}
-				{page === "activity" && <ActivityPage topology={topology} stats={stats} />}
-				{page === "architecture" && <ArchitecturePage />}
-				{page === "glossary" && <GlossaryPage />}
-				{page === "endpoints" && <EndpointsPage />}
+				{page === 'dashboard' && <DashboardPage topology={topology} stats={stats} />}
+				{page === 'activity' && <ActivityPage topology={topology} stats={stats} />}
+				{page === 'architecture' && <ArchitecturePage />}
+				{page === 'glossary' && <GlossaryPage />}
+				{page === 'endpoints' && <EndpointsPage />}
 			</main>
 		</div>
 	);

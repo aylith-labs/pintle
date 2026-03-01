@@ -1,8 +1,8 @@
-import { type Endpoint, endpoints, type HttpMethod } from "../data/endpoints";
+import { type Endpoint, endpoints, type HttpMethod } from '../data/endpoints';
 
 const methodColors: Record<HttpMethod, string> = {
-	GET: "bg-sky-500/10 text-sky-500 border-sky-500/20",
-	OPTIONS: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+	GET: 'bg-sky-500/10 text-sky-500 border-sky-500/20',
+	OPTIONS: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
 };
 
 function MethodBadge({ method }: { method: HttpMethod }) {
@@ -45,7 +45,7 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
 										<tr key={param.name} className="border-t border-gray-100 dark:border-zinc-800/60">
 											<td className="px-3 py-1.5 text-indigo-500 font-medium">{param.name}</td>
 											<td className="px-3 py-1.5 text-gray-500 dark:text-zinc-400">{param.type}</td>
-											<td className="px-3 py-1.5 text-gray-400 dark:text-zinc-500">{param.default ?? "—"}</td>
+											<td className="px-3 py-1.5 text-gray-400 dark:text-zinc-500">{param.default ?? '—'}</td>
 											<td className="px-3 py-1.5 text-gray-600 dark:text-zinc-400">{param.description}</td>
 										</tr>
 									))}

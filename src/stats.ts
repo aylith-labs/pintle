@@ -1,4 +1,4 @@
-import { DASHBOARD_HOST } from "./config";
+import { DASHBOARD_HOST } from './config';
 
 type RequestRecord = {
 	timestamp: number;

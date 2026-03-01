@@ -1,11 +1,7 @@
-import * as log from "./logger";
-import type { Route } from "./types";
+import * as log from './logger';
+import type { Route } from './types';
 
 let routeMap = new Map<string, Route[]>();
-
-export function getRoutes(): Map<string, Route[]> {
-	return routeMap;
-}
 
 export function getAllRoutes(): Route[] {
 	const all: Route[] = [];
@@ -47,7 +43,7 @@ export function updateRoutes(routes: Route[]): void {
 	for (const r of routes) {
 		const key = `${r.hostname}${r.path}->${r.target}`;
 		if (!prevSet.has(key)) {
-			log.routeChange("add", r.hostname, r.path, r.target);
+			log.routeChange('add', r.hostname, r.path, r.target);
 		}
 	}
 
@@ -55,7 +51,7 @@ export function updateRoutes(routes: Route[]): void {
 		for (const r of prevRoutes) {
 			const key = `${r.hostname}${r.path}->${r.target}`;
 			if (!nextSet.has(key)) {
-				log.routeChange("remove", r.hostname, r.path, r.target);
+				log.routeChange('remove', r.hostname, r.path, r.target);
 			}
 		}
 	}
@@ -68,8 +64,8 @@ export function resolve(hostname: string, path: string): { target: string; rewri
 	if (!routes) return null;
 
 	for (const route of routes) {
-		if (route.path === "/" || path === route.path || path.startsWith(`${route.path}/`)) {
-			const rewrittenPath = route.stripPath ? path.slice(route.path.length) || "/" : path;
+		if (route.path === '/' || path === route.path || path.startsWith(`${route.path}/`)) {
+			const rewrittenPath = route.stripPath ? path.slice(route.path.length) || '/' : path;
 			return { target: route.target, rewrittenPath };
 		}
 	}

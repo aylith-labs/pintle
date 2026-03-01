@@ -1,4 +1,4 @@
-import type { ActivityFilters, DurationFilter, MethodFilter, StatusFilter, TimeRange } from "../types";
+import type { ActivityFilters, DurationFilter, MethodFilter, StatusFilter, TimeRange } from '../types';
 
 type FilterBarProps = {
 	filters: ActivityFilters;
@@ -27,7 +27,7 @@ function FilterSelect({
 			>
 				{options.map((opt) => (
 					<option key={opt} value={opt}>
-						{opt === "ALL" ? "All" : opt}
+						{opt === 'ALL' ? 'All' : opt}
 					</option>
 				))}
 			</select>
@@ -45,27 +45,27 @@ export function FilterBar({ filters, onFiltersChange, hosts }: FilterBarProps) {
 			<FilterSelect
 				label="Time"
 				value={filters.timeRange}
-				options={["all", "5m", "15m", "30m", "1h", "6h", "1d", "1w"]}
-				onChange={(v) => update("timeRange", v as TimeRange)}
+				options={['all', '5m', '15m', '30m', '1h', '6h', '1d', '1w']}
+				onChange={(v) => update('timeRange', v as TimeRange)}
 			/>
 			<FilterSelect
 				label="Method"
 				value={filters.method}
-				options={["ALL", "GET", "POST", "PUT", "PATCH", "DELETE"]}
-				onChange={(v) => update("method", v as MethodFilter)}
+				options={['ALL', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE']}
+				onChange={(v) => update('method', v as MethodFilter)}
 			/>
-			<FilterSelect label="Host" value={filters.host} options={["ALL", ...hosts]} onChange={(v) => update("host", v)} />
+			<FilterSelect label="Host" value={filters.host} options={['ALL', ...hosts]} onChange={(v) => update('host', v)} />
 			<FilterSelect
 				label="Status"
 				value={filters.status}
-				options={["ALL", "2xx", "3xx", "4xx", "5xx"]}
-				onChange={(v) => update("status", v as StatusFilter)}
+				options={['ALL', '2xx', '3xx', '4xx', '5xx']}
+				onChange={(v) => update('status', v as StatusFilter)}
 			/>
 			<FilterSelect
 				label="Duration"
 				value={filters.duration}
-				options={["ALL", "<100ms", "<500ms", "<1s", ">1s"]}
-				onChange={(v) => update("duration", v as DurationFilter)}
+				options={['ALL', '<100ms', '<500ms', '<1s', '>1s']}
+				onChange={(v) => update('duration', v as DurationFilter)}
 			/>
 		</div>
 	);

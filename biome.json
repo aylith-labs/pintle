@@ -9,6 +9,11 @@
 		"indentStyle": "tab",
 		"lineWidth": 120
 	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "single"
+		}
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {

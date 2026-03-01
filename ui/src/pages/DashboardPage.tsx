@@ -1,6 +1,6 @@
-import { FlowDiagram } from "../components/FlowDiagram";
-import { StatsBar } from "../components/StatsBar";
-import type { ProxyStats, ProxyTopology } from "../types";
+import { FlowDiagram } from '../components/FlowDiagram';
+import { StatsBar } from '../components/StatsBar';
+import type { ProxyStats, ProxyTopology } from '../types';
 
 type DashboardPageProps = {
 	topology: ProxyTopology | null;

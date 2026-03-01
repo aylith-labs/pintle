@@ -1,4 +1,4 @@
-import { glossary } from "../data/glossary";
+import { glossary } from '../data/glossary';
 
 export function GlossaryPage() {
 	return (

@@ -1,9 +1,9 @@
-import { Background, Controls, type NodeTypes, ReactFlow } from "@xyflow/react";
-import type { ProxyStats, ProxyTopology } from "../types";
-import { InfraNode } from "./nodes/InfraNode";
-import { ServiceNode } from "./nodes/ServiceNode";
-import { TraefikNode } from "./nodes/TraefikNode";
-import { useFlowLayout } from "./useFlowLayout";
+import { Background, Controls, type NodeTypes, ReactFlow } from '@xyflow/react';
+import type { ProxyStats, ProxyTopology } from '../types';
+import { InfraNode } from './nodes/InfraNode';
+import { ServiceNode } from './nodes/ServiceNode';
+import { TraefikNode } from './nodes/TraefikNode';
+import { useFlowLayout } from './useFlowLayout';
 
 const nodeTypes: NodeTypes = {
 	infra: InfraNode,

@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from "react";
-import { glossary } from "../data/glossary";
+import { useCallback, useRef, useState } from 'react';
+import { glossary } from '../data/glossary';
 
 type TooltipPos = {
-	vertical: "above" | "below";
+	vertical: 'above' | 'below';
 	left: number;
 };
 
@@ -11,14 +11,14 @@ export function Abbr({ children, title }: { children: string; title?: string }) 
 	const tooltipText = title ?? (entry ? `${entry.term} — ${entry.description}` : children);
 	const ref = useRef<HTMLSpanElement>(null);
 	const tooltipRef = useRef<HTMLSpanElement>(null);
-	const [pos, setPos] = useState<TooltipPos>({ vertical: "above", left: 0 });
+	const [pos, setPos] = useState<TooltipPos>({ vertical: 'above', left: 0 });
 
 	const handleMouseEnter = useCallback(() => {
 		if (!ref.current || !tooltipRef.current) return;
 		const triggerRect = ref.current.getBoundingClientRect();
 		const tooltipRect = tooltipRef.current.getBoundingClientRect();
 
-		const vertical = triggerRect.top < 80 ? "below" : "above";
+		const vertical = triggerRect.top < 80 ? 'below' : 'above';
 
 		// Center position
 		const centerX = triggerRect.left + triggerRect.width / 2;
@@ -44,7 +44,7 @@ export function Abbr({ children, title }: { children: string; title?: string }) 
 				ref={tooltipRef}
 				style={{ transform: `translateX(calc(-50% + ${pos.left}px))` }}
 				className={`absolute left-1/2 px-3 py-2 text-[0.6875rem] leading-relaxed bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg shadow-lg opacity-0 group-hover/abbr:opacity-100 transition-opacity duration-150 pointer-events-none w-max max-w-[280px] z-50 text-center font-sans normal-case tracking-normal ${
-					pos.vertical === "above" ? "bottom-full mb-1.5" : "top-full mt-1.5"
+					pos.vertical === 'above' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
 				}`}
 			>
 				{tooltipText}

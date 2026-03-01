@@ -1,6 +1,6 @@
-import { createServer, Socket } from "node:net";
-import { BASE_DOMAIN } from "./config";
-import * as log from "./logger";
+import { createServer, Socket } from 'node:net';
+import { BASE_DOMAIN } from './config';
+import * as log from './logger';
 
 /**
  * Parse SNI (Server Name Indication) from a TLS ClientHello message.
@@ -58,7 +58,7 @@ function parseSNI(buf: Buffer): string | null {
 			const nameLen = buf.readUInt16BE(pos + 3);
 			if (pos + 5 + nameLen > buf.length) return null;
 
-			return buf.subarray(pos + 5, pos + 5 + nameLen).toString("ascii");
+			return buf.subarray(pos + 5, pos + 5 + nameLen).toString('ascii');
 		}
 
 		pos += extLen;
@@ -87,13 +87,13 @@ function pipeToTarget(clientSocket: Socket, data: Buffer, host: string, port: nu
 		upstream.pipe(clientSocket);
 	});
 
-	upstream.on("error", () => clientSocket.destroy());
-	clientSocket.on("error", () => upstream.destroy());
+	upstream.on('error', () => clientSocket.destroy());
+	clientSocket.on('error', () => upstream.destroy());
 }
 
 export function startSniRouter(config: SniRouterConfig): void {
 	const server = createServer((clientSocket: Socket) => {
-		clientSocket.once("data", (data: Buffer) => {
+		clientSocket.once('data', (data: Buffer) => {
 			const sni = parseSNI(data);
 
 			// Find a forward target for this SNI hostname
@@ -114,7 +114,7 @@ export function startSniRouter(config: SniRouterConfig): void {
 			}
 		});
 
-		clientSocket.on("error", () => {});
+		clientSocket.on('error', () => {});
 	});
 
 	server.listen(config.port, () => {

@@ -1,12 +1,12 @@
-import type { ProxyRequest, ProxyStats, ProxyTopology } from "./types";
+import type { ProxyRequest, ProxyStats, ProxyTopology } from './types';
 
 export async function fetchTopology(): Promise<ProxyTopology> {
-	const res = await fetch("/api/topology");
+	const res = await fetch('/api/topology');
 	return res.json();
 }
 
 export async function fetchStats(): Promise<ProxyStats> {
-	const res = await fetch("/api/stats");
+	const res = await fetch('/api/stats');
 	return res.json();
 }
 

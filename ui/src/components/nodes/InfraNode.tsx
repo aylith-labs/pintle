@@ -1,12 +1,12 @@
-import { ArrowsLeftRight, Globe, HardDrive, ShieldCheck } from "@phosphor-icons/react";
-import { Handle, type NodeProps, Position } from "@xyflow/react";
+import { ArrowsLeftRight, Globe, HardDrive, ShieldCheck } from '@phosphor-icons/react';
+import { Handle, type NodeProps, Position } from '@xyflow/react';
 
 export type InfraNodeData = {
 	label: string;
 	sublabel?: string;
 	port: number;
 	externalPort?: number;
-	icon: "globe" | "shield" | "server" | "redirect";
+	icon: 'globe' | 'shield' | 'server' | 'redirect';
 };
 
 const icons = {

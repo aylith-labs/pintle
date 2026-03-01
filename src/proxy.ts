@@ -1,20 +1,20 @@
-import * as log from "./logger";
-import { resolve } from "./router";
-import { recordRequest } from "./stats";
+import * as log from './logger';
+import { resolve } from './router';
+import { recordRequest } from './stats';
 
 export async function handleRequest(req: Request): Promise<Response> {
 	const url = new URL(req.url);
-	const hostname = (req.headers.get("host") ?? "").split(":")[0];
+	const hostname = (req.headers.get('host') ?? '').split(':')[0];
 
 	const match = resolve(hostname, url.pathname);
 	if (!match) {
-		log.route(req.method, hostname, url.pathname, "no route", 404);
+		log.route(req.method, hostname, url.pathname, 'no route', 404);
 		recordRequest({
 			timestamp: Date.now(),
 			method: req.method,
 			hostname,
 			path: url.pathname,
-			target: "none",
+			target: 'none',
 			status: 404,
 			durationMs: 0,
 		});
@@ -26,15 +26,15 @@ export async function handleRequest(req: Request): Promise<Response> {
 
 	try {
 		const headers = new Headers(req.headers);
-		headers.set("x-forwarded-for", req.headers.get("x-real-ip") ?? "127.0.0.1");
-		headers.set("x-forwarded-proto", "https");
-		headers.set("x-forwarded-host", hostname);
+		headers.set('x-forwarded-for', req.headers.get('x-real-ip') ?? '127.0.0.1');
+		headers.set('x-forwarded-proto', 'https');
+		headers.set('x-forwarded-host', hostname);
 
 		const response = await fetch(targetUrl, {
 			method: req.method,
 			headers,
-			body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
-			redirect: "manual",
+			body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
+			redirect: 'manual',
 		});
 
 		const durationMs = performance.now() - startTime;
@@ -52,7 +52,7 @@ export async function handleRequest(req: Request): Promise<Response> {
 		// Copy response headers
 		const respHeaders = new Headers(response.headers);
 		// Remove hop-by-hop headers
-		respHeaders.delete("transfer-encoding");
+		respHeaders.delete('transfer-encoding');
 
 		return new Response(response.body, {
 			status: response.status,

@@ -1,5 +1,5 @@
-import { Clock, GitFork, Pulse, Warning } from "@phosphor-icons/react";
-import type { ProxyStats, ProxyTopology } from "../types";
+import { Clock, GitFork, Pulse, Warning } from '@phosphor-icons/react';
+import type { ProxyStats, ProxyTopology } from '../types';
 
 type StatsBarProps = {
 	topology: ProxyTopology | null;
@@ -34,7 +34,7 @@ export function StatsBar({ topology, stats }: StatsBarProps) {
 	const uptime = stats?.uptime ?? 0;
 
 	const totalErrors = stats ? Object.values(stats.hostStats).reduce((sum, s) => sum + s.errorCount, 0) : 0;
-	const errorRate = totalRequests > 0 ? ((totalErrors / totalRequests) * 100).toFixed(1) : "0.0";
+	const errorRate = totalRequests > 0 ? ((totalErrors / totalRequests) * 100).toFixed(1) : '0.0';
 
 	return (
 		<div className="grid grid-cols-2 md:grid-cols-4 gap-2">

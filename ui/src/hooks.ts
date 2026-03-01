@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchRequests, fetchStats, fetchTopology } from "./api";
-import type { ProxyRequest, ProxyStats, ProxyTopology } from "./types";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchRequests, fetchStats, fetchTopology } from './api';
+import type { ProxyRequest, ProxyStats, ProxyTopology } from './types';
 
 function usePolling<T>(fetcher: () => Promise<T>, intervalMs: number): { data: T | null; isLoading: boolean } {
 	const [data, setData] = useState<T | null>(null);
@@ -50,41 +50,41 @@ export function useActivityRequests() {
 	return usePolling<ProxyRequest[]>(() => fetchRequests(1000), 2_000);
 }
 
-type Theme = "system" | "light" | "dark";
+type Theme = 'system' | 'light' | 'dark';
 
 export function useTheme() {
 	const [theme, setTheme] = useState<Theme>(() => {
-		if (typeof window === "undefined") return "system";
-		return (localStorage.getItem("proxy-theme") as Theme) ?? "system";
+		if (typeof window === 'undefined') return 'system';
+		return (localStorage.getItem('proxy-theme') as Theme) ?? 'system';
 	});
 
 	useEffect(() => {
 		const root = document.documentElement;
 
 		function apply(t: Theme) {
-			if (t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-				root.classList.add("dark");
+			if (t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+				root.classList.add('dark');
 			} else {
-				root.classList.remove("dark");
+				root.classList.remove('dark');
 			}
 		}
 
 		apply(theme);
-		localStorage.setItem("proxy-theme", theme);
+		localStorage.setItem('proxy-theme', theme);
 
-		if (theme === "system") {
-			const mq = window.matchMedia("(prefers-color-scheme: dark)");
-			const handler = () => apply("system");
-			mq.addEventListener("change", handler);
-			return () => mq.removeEventListener("change", handler);
+		if (theme === 'system') {
+			const mq = window.matchMedia('(prefers-color-scheme: dark)');
+			const handler = () => apply('system');
+			mq.addEventListener('change', handler);
+			return () => mq.removeEventListener('change', handler);
 		}
 	}, [theme]);
 
 	const cycleTheme = useCallback(() => {
 		setTheme((prev) => {
-			if (prev === "system") return "light";
-			if (prev === "light") return "dark";
-			return "system";
+			if (prev === 'system') return 'light';
+			if (prev === 'light') return 'dark';
+			return 'system';
 		});
 	}, []);
 
@@ -93,13 +93,13 @@ export function useTheme() {
 
 export function useFontSize() {
 	const [size, setSize] = useState<number>(() => {
-		const stored = localStorage.getItem("proxy-font-size");
+		const stored = localStorage.getItem('proxy-font-size');
 		return stored ? Number(stored) : 100;
 	});
 
 	useEffect(() => {
 		document.documentElement.style.fontSize = `${size}%`;
-		localStorage.setItem("proxy-font-size", String(size));
+		localStorage.setItem('proxy-font-size', String(size));
 	}, [size]);
 
 	const increase = useCallback(() => setSize((s) => Math.min(s + 10, 150)), []);

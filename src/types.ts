@@ -3,7 +3,7 @@ export type Route = {
 	path: string;
 	target: string;
 	stripPath: boolean;
-	source: "docker" | "static" | "traefik" | "caddy";
+	source: 'docker' | 'static' | 'traefik' | 'caddy';
 	containerName?: string;
 };
 
@@ -14,11 +14,8 @@ export type StaticRouteConfig = {
 	strip?: boolean;
 };
 
-export type ProxyConfig = {
-	httpsPort: number;
-	httpPort: number;
-	certPath: string;
-	keyPath: string;
-	dockerNetwork: string;
-	routesFile: string;
+export type PassthroughConfig = {
+	domain: string;
+	target: 'traefik';
 };
+

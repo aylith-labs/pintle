@@ -1,6 +1,6 @@
-import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [react(), tailwindcss()],
@@ -11,12 +11,12 @@ export default defineConfig({
 		hmr: {
 			// Connect HMR directly to Vite, bypassing the proxy's WebSocket relay
 			// Prevents ECONNRESET crashes when browser disconnects
-			host: "localhost",
+			host: 'localhost',
 			port: 5175,
-			protocol: "ws",
+			protocol: 'ws',
 		},
 	},
 	build: {
-		outDir: "dist",
+		outDir: 'dist',
 	},
 });
