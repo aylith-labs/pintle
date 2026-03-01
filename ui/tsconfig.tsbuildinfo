@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/api.ts","./src/hooks.ts","./src/main.tsx","./src/types.ts","./src/components/FlowDiagram.tsx","./src/components/RequestLog.tsx","./src/components/StatsBar.tsx","./src/components/useFlowLayout.ts","./src/components/nodes/InfraNode.tsx","./src/components/nodes/ServiceNode.tsx","./src/components/nodes/TraefikNode.tsx"],"version":"5.9.3"}

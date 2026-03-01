@@ -6,7 +6,7 @@ import * as log from './logger';
  * Parse SNI (Server Name Indication) from a TLS ClientHello message.
  * Returns the hostname or null if not found.
  */
-function parseSNI(buf: Buffer): string | null {
+export function parseSNI(buf: Buffer): string | null {
 	// TLS record: type(1) + version(2) + length(2) + handshake
 	if (buf.length < 5 || buf[0] !== 0x16) return null; // 0x16 = Handshake
 

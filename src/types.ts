@@ -18,3 +18,18 @@ export type PassthroughConfig = {
 	domain: string;
 	target: 'traefik';
 };
+
+export type TcpRoute = {
+	hostname: string;
+	targetHost: string;
+	targetPort: number;
+	listenPort: number;
+	source: 'docker' | 'static' | 'traefik';
+	containerName?: string;
+};
+
+export type StaticTcpRouteConfig = {
+	host: string;
+	target: string | number;
+	listen: number;
+};

@@ -1,14 +1,15 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import type { ServerWebSocket } from 'bun';
 import { handleApiRequest } from './api';
 import { BASE_DOMAIN, DASHBOARD_HOST } from './config';
-import { getDockerRoutes, getTraefikTarget, initDockerWatcher } from './docker-watcher';
+import { getDockerRoutes, getDockerTcpRoutes, getTraefikTarget, initDockerWatcher } from './docker-watcher';
 import * as log from './logger';
 import { handleRequest } from './proxy';
 import { resolve, updateRoutes } from './router';
 import { startSniRouter } from './sni-router';
-import { getPassthroughDomains, getStaticRoutes, initStaticRoutes } from './static-routes';
+import { getPassthroughDomains, getStaticRoutes, getStaticTcpRoutes, initStaticRoutes } from './static-routes';
+import { startTcpRouters } from './tcp-router';
 
 const LISTEN_PORT = Number.parseInt(process.env.LISTEN_PORT ?? '9443', 10);
 const INTERNAL_HTTPS_PORT = 9444; // Bun HTTPS server (internal, SNI router forwards here)
@@ -176,3 +177,39 @@ startSniRouter({
 	localTarget: { host: '127.0.0.1', port: INTERNAL_HTTPS_PORT },
 	forwardTargets,
 });
+
+// --- TCP routers (Redis, PostgreSQL, MySQL — TLS termination + plain TCP to container) ---
+
+function buildTcpCerts(): { cert: Buffer; key: Buffer; domain: string }[] {
+	const certs: { cert: Buffer; key: Buffer; domain: string }[] = [];
+
+	// Base domain cert (*.lvh.me)
+	if (existsSync(CERT_PATH) && existsSync(KEY_PATH)) {
+		certs.push({ cert: readFileSync(CERT_PATH), key: readFileSync(KEY_PATH), domain: BASE_DOMAIN });
+	}
+
+	// Passthrough domain certs (*.internal.example, etc.)
+	for (const pt of getPassthroughDomains()) {
+		const certPath = resolvePath(CERTS_DIR, `${pt.domain}.pem`);
+		const keyPath = resolvePath(CERTS_DIR, `${pt.domain}-key.pem`);
+		if (existsSync(certPath) && existsSync(keyPath)) {
+			certs.push({ cert: readFileSync(certPath), key: readFileSync(keyPath), domain: pt.domain });
+		}
+	}
+
+	return certs;
+}
+
+const allTcpRoutes = () => [...getDockerTcpRoutes(), ...getStaticTcpRoutes()];
+const tcpRoutes = allTcpRoutes();
+
+if (tcpRoutes.length > 0) {
+	const activePorts = [...new Set(tcpRoutes.map((r) => r.listenPort))];
+	startTcpRouters({
+		ports: activePorts,
+		certs: buildTcpCerts(),
+		getRoutes: allTcpRoutes,
+	});
+} else {
+	log.info('No TCP routes discovered, skipping TCP routers');
+}

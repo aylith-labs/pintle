@@ -1,10 +1,12 @@
 import Docker from 'dockerode';
+import { TCP_ENTRYPOINTS } from './config';
 import * as log from './logger';
-import type { Route } from './types';
+import type { Route, TcpRoute } from './types';
 
 const docker = new Docker();
 
 let currentRoutes: Route[] = [];
+let currentTcpRoutes: TcpRoute[] = [];
 let onChange: (() => void) | null = null;
 let rebuildTimer: ReturnType<typeof setTimeout> | null = null;
 let traefikIp: string | null = null;
@@ -226,6 +228,76 @@ async function discoverCaddyRoutes(excludeContainers: Set<string>): Promise<Rout
 	return routes;
 }
 
+function parseTraefikTcpLabels(labels: Record<string, string>): {
+	hostname: string;
+	entrypoint: string;
+	containerPort: number;
+} | null {
+	if (labels['traefik.enable'] !== 'true') return null;
+
+	// Find TCP router rule: traefik.tcp.routers.<NAME>.rule = HostSNI(`hostname`)
+	let hostname: string | null = null;
+	let entrypoint: string | null = null;
+
+	for (const [key, value] of Object.entries(labels)) {
+		const ruleMatch = key.match(/^traefik\.tcp\.routers\..+\.rule$/);
+		if (ruleMatch) {
+			const sniMatch = value.match(/HostSNI\(`([^`]+)`\)/);
+			if (sniMatch) hostname = sniMatch[1];
+		}
+
+		const epMatch = key.match(/^traefik\.tcp\.routers\..+\.entrypoints$/);
+		if (epMatch) entrypoint = value;
+	}
+
+	if (!hostname || !entrypoint) return null;
+
+	// Find port: traefik.tcp.services.<NAME>.loadbalancer.server.port
+	let containerPort: number | null = null;
+	for (const [key, value] of Object.entries(labels)) {
+		if (/^traefik\.tcp\.services\..+\.loadbalancer\.server\.port$/.test(key)) {
+			containerPort = Number.parseInt(value, 10);
+			break;
+		}
+	}
+	if (!containerPort) return null;
+
+	return { hostname, entrypoint, containerPort };
+}
+
+async function discoverTcpRoutes(): Promise<TcpRoute[]> {
+	const containers = await docker.listContainers({
+		filters: { label: ['traefik.enable=true'] },
+	});
+
+	const routes: TcpRoute[] = [];
+	for (const containerInfo of containers) {
+		if (containerInfo.Image.includes('traefik')) continue;
+
+		const parsed = parseTraefikTcpLabels(containerInfo.Labels);
+		if (!parsed) continue;
+
+		const listenPort = TCP_ENTRYPOINTS[parsed.entrypoint];
+		if (!listenPort) continue;
+
+		const networks = containerInfo.NetworkSettings?.Networks ?? {};
+		const networkInfo = networks[NETWORK_NAME];
+		const name = containerInfo.Names[0]?.replace(/^\//, '') ?? 'unknown';
+
+		if (!networkInfo?.IPAddress) continue;
+
+		routes.push({
+			hostname: parsed.hostname,
+			targetHost: networkInfo.IPAddress,
+			targetPort: parsed.containerPort,
+			listenPort,
+			source: 'traefik',
+			containerName: name,
+		});
+	}
+	return routes;
+}
+
 async function discoverAllRoutes(): Promise<Route[]> {
 	// Proxy labels take precedence, then traefik, then caddy
 	const proxyRoutes = await discoverProxyRoutes();
@@ -259,6 +331,7 @@ function scheduleRebuild(): void {
 	rebuildTimer = setTimeout(async () => {
 		try {
 			currentRoutes = await discoverAllRoutes();
+			currentTcpRoutes = await discoverTcpRoutes();
 			await discoverTraefik();
 			onChange?.();
 		} catch (err) {
@@ -269,6 +342,10 @@ function scheduleRebuild(): void {
 
 export function getDockerRoutes(): Route[] {
 	return currentRoutes;
+}
+
+export function getDockerTcpRoutes(): TcpRoute[] {
+	return currentTcpRoutes;
 }
 
 export function getTraefikTarget(): { host: string; port: number } | null {
@@ -308,8 +385,11 @@ export async function initDockerWatcher(onUpdate: () => void): Promise<void> {
 	// Initial discovery
 	try {
 		currentRoutes = await discoverAllRoutes();
+		currentTcpRoutes = await discoverTcpRoutes();
 		await discoverTraefik();
-		log.info(`Discovered ${currentRoutes.length} Docker route(s) on network '${NETWORK_NAME}'`);
+		log.info(
+			`Discovered ${currentRoutes.length} HTTP + ${currentTcpRoutes.length} TCP Docker route(s) on network '${NETWORK_NAME}'`,
+		);
 	} catch (err) {
 		log.error('Failed initial Docker discovery', err);
 	}

@@ -1,6 +1,6 @@
-import { getDockerRoutes, getTraefikTarget } from './docker-watcher';
+import { getDockerRoutes, getDockerTcpRoutes, getTraefikTarget } from './docker-watcher';
 import { getAllRoutes } from './router';
-import { getStaticRoutes } from './static-routes';
+import { getStaticRoutes, getStaticTcpRoutes } from './static-routes';
 import { getEdgeStats, getHostStats, getRecentRequests, getTotalRequests, getUptime } from './stats';
 
 const VITE_DEV_URL = 'http://localhost:5175';
@@ -48,6 +48,13 @@ function handleTopology(): Response {
 			hostname: r.hostname,
 			target: r.target,
 			source: 'static' as const,
+		})),
+		tcpRoutes: [...getDockerTcpRoutes(), ...getStaticTcpRoutes()].map((r) => ({
+			hostname: r.hostname,
+			listenPort: r.listenPort,
+			target: `${r.targetHost}:${r.targetPort}`,
+			source: r.source,
+			containerName: r.containerName,
 		})),
 	});
 }
