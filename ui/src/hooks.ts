@@ -91,20 +91,23 @@ export function useTheme() {
 	return { theme, setTheme, cycleTheme };
 }
 
+export type FontSize = 100 | 120 | 150 | 200;
+
+const FONT_SIZES: FontSize[] = [100, 120, 150, 200];
+
 export function useFontSize() {
-	const [size, setSize] = useState<number>(() => {
+	const [size, setSize] = useState<FontSize>(() => {
 		const stored = localStorage.getItem('proxy-font-size');
-		return stored ? Number(stored) : 100;
+		const parsed = stored ? Number(stored) : 100;
+		return FONT_SIZES.includes(parsed as FontSize) ? (parsed as FontSize) : 100;
 	});
 
 	useEffect(() => {
+		const scale = size / 100;
 		document.documentElement.style.fontSize = `${size}%`;
+		document.documentElement.style.setProperty('--ui-scale', String(scale));
 		localStorage.setItem('proxy-font-size', String(size));
 	}, [size]);
 
-	const increase = useCallback(() => setSize((s) => Math.min(s + 10, 150)), []);
-	const decrease = useCallback(() => setSize((s) => Math.max(s - 10, 75)), []);
-	const reset = useCallback(() => setSize(100), []);
-
-	return { size, increase, decrease, reset };
+	return { size, setSize, sizes: FONT_SIZES, scale: size / 100 };
 }

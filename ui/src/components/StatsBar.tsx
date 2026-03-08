@@ -1,4 +1,4 @@
-import { Clock, GitFork, Pulse, Warning } from '@phosphor-icons/react';
+import { Clock, Cube, GitFork, Pulse, Terminal, Warning } from '@phosphor-icons/react';
 import type { ProxyStats, ProxyTopology } from '../types';
 
 type StatsBarProps = {
@@ -32,12 +32,24 @@ export function StatsBar({ topology, stats }: StatsBarProps) {
 	const totalRoutes = topology?.routes.length ?? 0;
 	const totalRequests = stats?.totalRequests ?? 0;
 	const uptime = stats?.uptime ?? 0;
+	const mode = topology?.mode;
 
 	const totalErrors = stats ? Object.values(stats.hostStats).reduce((sum, s) => sum + s.errorCount, 0) : 0;
 	const errorRate = totalRequests > 0 ? ((totalErrors / totalRequests) * 100).toFixed(1) : '0.0';
 
 	return (
-		<div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+		<div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+			<StatCard
+				icon={
+					mode === 'docker' ? (
+						<Cube size={18} weight="bold" />
+					) : (
+						<Terminal size={18} weight="bold" />
+					)
+				}
+				label="Runtime"
+				value={mode === 'docker' ? 'Docker' : 'Host-native'}
+			/>
 			<StatCard icon={<Pulse size={18} weight="bold" />} label="Total Requests" value={String(totalRequests)} />
 			<StatCard icon={<Clock size={18} weight="bold" />} label="Uptime" value={formatUptime(uptime)} />
 			<StatCard icon={<GitFork size={18} weight="bold" />} label="Active Routes" value={String(totalRoutes)} />

@@ -1,5 +1,7 @@
-import { ArrowRight, FlowArrow } from '@phosphor-icons/react';
+import { ArrowRight, Cube, FlowArrow, Terminal } from '@phosphor-icons/react';
+import { useState } from 'react';
 import { Abbr } from '../components/Abbr';
+import type { RuntimeMode } from '../types';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
 	return (
@@ -23,7 +25,73 @@ function DiagramRow({ left, arrow, right, note }: { left: string; arrow?: string
 	);
 }
 
-export function ArchitecturePage() {
+function ModeBadge({ mode }: { mode: RuntimeMode }) {
+	const Icon = mode === 'docker' ? Cube : Terminal;
+	const label = mode === 'docker' ? 'Docker' : 'Host-native';
+	const color =
+		mode === 'docker'
+			? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200/60 dark:border-sky-800/40'
+			: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40';
+	return (
+		<span
+			className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[0.5625rem] font-medium ${color}`}
+		>
+			<Icon size={10} weight="bold" />
+			{label}
+		</span>
+	);
+}
+
+function ModeToggle({
+	mode,
+	onChange,
+	detectedMode,
+}: { mode: RuntimeMode; onChange: (m: RuntimeMode) => void; detectedMode: RuntimeMode | null }) {
+	return (
+		<div className="flex items-center gap-2">
+			{detectedMode && (
+				<span className="text-[0.625rem] text-gray-400 dark:text-zinc-500 mr-1">
+					detected: {detectedMode === 'docker' ? 'Docker' : 'host-native'}
+				</span>
+			)}
+			<div className="flex rounded-md border border-gray-200/60 dark:border-zinc-700 overflow-hidden">
+				<button
+					type="button"
+					onClick={() => onChange('docker')}
+					className={`flex items-center gap-1 px-2.5 py-1 text-[0.625rem] font-medium transition-colors ${
+						mode === 'docker'
+							? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+							: 'text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
+					}`}
+				>
+					<Cube size={11} />
+					Docker
+				</button>
+				<button
+					type="button"
+					onClick={() => onChange('host-native')}
+					className={`flex items-center gap-1 px-2.5 py-1 text-[0.625rem] font-medium transition-colors border-l border-gray-200/60 dark:border-zinc-700 ${
+						mode === 'host-native'
+							? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+							: 'text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
+					}`}
+				>
+					<Terminal size={11} />
+					Host-native
+				</button>
+			</div>
+		</div>
+	);
+}
+
+type ArchitecturePageProps = {
+	mode: RuntimeMode | null;
+};
+
+export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) {
+	const [mode, setMode] = useState<RuntimeMode>(detectedMode ?? 'docker');
+	const isDocker = mode === 'docker';
+
 	return (
 		<div className="space-y-8 max-w-3xl">
 			{/* Header with link back */}
@@ -32,13 +100,16 @@ export function ArchitecturePage() {
 					<FlowArrow size={18} weight="bold" className="text-indigo-500" />
 					<h1 className="text-sm font-semibold tracking-tight">Architecture</h1>
 				</div>
-				<a
-					href="#/"
-					className="text-[0.6875rem] font-medium text-indigo-500 hover:text-indigo-400 transition-colors flex items-center gap-1"
-				>
-					View Live Dashboard
-					<ArrowRight size={12} />
-				</a>
+				<div className="flex items-center gap-4">
+					<ModeToggle mode={mode} onChange={setMode} detectedMode={detectedMode} />
+					<a
+						href="#/"
+						className="text-[0.6875rem] font-medium text-indigo-500 hover:text-indigo-400 transition-colors flex items-center gap-1"
+					>
+						View Live Dashboard
+						<ArrowRight size={12} />
+					</a>
+				</div>
 			</div>
 
 			{/* Overview */}
@@ -57,7 +128,14 @@ export function ArchitecturePage() {
 					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
 						<Abbr>HTTPS</Abbr> Traffic (port 443)
 					</div>
-					<DiagramRow left="Browser :443" arrow="iptables NAT" right="SNI Router :9443" note="port redirect" />
+					<div className="flex items-center gap-2">
+						<ModeBadge mode={mode} />
+						{isDocker ? (
+							<DiagramRow left="Browser :443" arrow="Docker port map" right="SNI Router :9443" note="443→9443" />
+						) : (
+							<DiagramRow left="Browser :443" arrow="iptables NAT" right="SNI Router :9443" note="port redirect" />
+						)}
+					</div>
 					<DiagramRow left="SNI Router" arrow="*.lvh.me" right="Bun HTTPS :9444" note="local TLS" />
 					<DiagramRow left="SNI Router" arrow="*.internal.example" right="Traefik :443" note="TCP passthrough" />
 					<DiagramRow left="Bun HTTPS" right="Docker containers" note="reverse proxy" />
@@ -65,7 +143,29 @@ export function ArchitecturePage() {
 					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-4 mb-3">
 						<Abbr>HTTP</Abbr> Traffic (port 80)
 					</div>
-					<DiagramRow left="Browser :80" arrow="iptables NAT" right="Redirect :9080" note="301 to HTTPS" />
+					<div className="flex items-center gap-2">
+						<ModeBadge mode={mode} />
+						{isDocker ? (
+							<DiagramRow left="Browser :80" arrow="Docker port map" right="Redirect :9080" note="80→9080, 301 to HTTPS" />
+						) : (
+							<DiagramRow left="Browser :80" arrow="iptables NAT" right="Redirect :9080" note="301 to HTTPS" />
+						)}
+					</div>
+
+					<div className="flex items-start gap-2 mt-3">
+						<ModeBadge mode={mode} />
+						{isDocker ? (
+							<p className="text-[0.625rem] text-gray-400 dark:text-zinc-500">
+								<strong>Windows <Abbr>WSL</Abbr> note:</strong> You may also need{' '}
+								<code>netsh interface portproxy</code> to forward from Windows localhost to the <Abbr>WSL</Abbr> IP.
+							</p>
+						) : (
+							<p className="text-[0.625rem] text-gray-400 dark:text-zinc-500">
+								Port redirection is managed by <code>scripts/start.sh</code> (iptables on Linux, pfctl on macOS).
+								Run <code>scripts/stop.sh</code> to remove the rules.
+							</p>
+						)}
+					</div>
 				</div>
 			</Section>
 
@@ -110,13 +210,13 @@ export function ArchitecturePage() {
 				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
 					<div>
 						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-sky-500 mb-1">
-							Native labels (proxy.*)
+							Native labels (local-proxy.*)
 						</div>
 						<code className="text-[0.6875rem] block space-y-0.5">
-							<div>proxy.host: "myapp.lvh.me"</div>
-							<div>proxy.port: "3000"</div>
-							<div>proxy.path: "/" (optional)</div>
-							<div>proxy.strip: "true" (optional)</div>
+							<div>local-proxy.host: "myapp.lvh.me"</div>
+							<div>local-proxy.port: "3000"</div>
+							<div>local-proxy.path: "/" (optional)</div>
+							<div>local-proxy.strip: "true" (optional)</div>
 						</code>
 					</div>
 
@@ -133,7 +233,7 @@ export function ArchitecturePage() {
 				</div>
 
 				<p>
-					Native <code>proxy.*</code> labels take precedence. If a container has both, only the native route is
+					Native <code>local-proxy.*</code> labels take precedence. If a container has both, only the native route is
 					registered.
 				</p>
 			</Section>
@@ -153,20 +253,20 @@ export function ArchitecturePage() {
 						</div>
 						<code className="text-[0.6875rem] block space-y-0.5">
 							<div># Frontend container</div>
-							<div>proxy.host: "app.lvh.me"</div>
-							<div>proxy.port: "3000"</div>
+							<div>local-proxy.host: "app.lvh.me"</div>
+							<div>local-proxy.port: "3000"</div>
 							<div>&nbsp;</div>
 							<div># API container</div>
-							<div>proxy.host: "app.lvh.me"</div>
-							<div>proxy.path: "/api"</div>
-							<div>proxy.strip: "true"</div>
-							<div>proxy.port: "8080"</div>
+							<div>local-proxy.host: "app.lvh.me"</div>
+							<div>local-proxy.path: "/api"</div>
+							<div>local-proxy.strip: "true"</div>
+							<div>local-proxy.port: "8080"</div>
 						</code>
 					</div>
 				</div>
 
 				<p>
-					<code>proxy.path</code> matches requests by path prefix. <code>proxy.strip</code> removes the prefix before
+					<code>local-proxy.path</code> matches requests by path prefix. <code>local-proxy.strip</code> removes the prefix before
 					forwarding — so <code>/api/users</code> arrives at the backend as <code>/users</code>.
 				</p>
 				<p>
@@ -204,13 +304,18 @@ export function ArchitecturePage() {
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Runtime</td>
 								<td className="px-4 py-2">Go binary in Docker container</td>
-								<td className="px-4 py-2">Bun process on host</td>
+								<td className="px-4 py-2">
+									<span className="inline-flex items-center gap-1.5">
+										<ModeBadge mode={mode} />
+										{isDocker ? 'Bun in Docker container' : 'Bun process on host'}
+									</span>
+								</td>
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Config</td>
 								<td className="px-4 py-2">YAML files + Docker labels (verbose)</td>
 								<td className="px-4 py-2">
-									Simple <code>proxy.*</code> labels + <code>routes.yaml</code>
+									Simple <code>local-proxy.*</code> labels + <code>routes.yaml</code>
 								</td>
 							</tr>
 							<tr>
@@ -245,7 +350,10 @@ export function ArchitecturePage() {
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Startup</td>
 								<td className="px-4 py-2">Docker container boot (~2-5s)</td>
 								<td className="px-4 py-2">
-									Instant (<code>bun run dev</code>)
+									<span className="inline-flex items-center gap-1.5">
+										<ModeBadge mode={mode} />
+										<code>{isDocker ? 'docker compose up -d' : 'bun run start'}</code>
+									</span>
 								</td>
 							</tr>
 							<tr>

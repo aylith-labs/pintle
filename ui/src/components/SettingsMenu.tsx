@@ -1,15 +1,15 @@
-import { ArrowCounterClockwise, GearSix, Monitor, Moon, Sun } from '@phosphor-icons/react';
+import { GearSix, Monitor, Moon, Sun } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
+import type { FontSize } from '../hooks';
 
 type Theme = 'system' | 'light' | 'dark';
 
 type SettingsMenuProps = {
 	theme: Theme;
 	setTheme: (t: Theme) => void;
-	fontSize: number;
-	onIncrease: () => void;
-	onDecrease: () => void;
-	onReset: () => void;
+	fontSize: FontSize;
+	fontSizes: FontSize[];
+	onFontSizeChange: (s: FontSize) => void;
 };
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
@@ -18,7 +18,7 @@ const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
 	{ value: 'system', icon: Monitor, label: 'System' },
 ];
 
-export function SettingsMenu({ theme, setTheme, fontSize, onIncrease, onDecrease, onReset }: SettingsMenuProps) {
+export function SettingsMenu({ theme, setTheme, fontSize, fontSizes, onFontSizeChange }: SettingsMenuProps) {
 	const [open, setOpen] = useState(false);
 	const menuRef = useRef<HTMLDivElement>(null);
 
@@ -78,35 +78,24 @@ export function SettingsMenu({ theme, setTheme, fontSize, onIncrease, onDecrease
 						<div className="text-[0.625rem] uppercase tracking-wider text-gray-500 dark:text-zinc-400 font-medium mb-1.5">
 							Font Size
 						</div>
-						<div className="flex items-center gap-1">
-							<button
-								type="button"
-								onClick={onDecrease}
-								disabled={fontSize <= 75}
-								className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-								title="Decrease font size"
-							>
-								<span className="text-[0.625rem] font-bold leading-none">A</span>
-							</button>
-							<div className="flex-1 text-center text-xs font-mono text-gray-700 dark:text-zinc-300">{fontSize}%</div>
-							<button
-								type="button"
-								onClick={onIncrease}
-								disabled={fontSize >= 150}
-								className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-								title="Increase font size"
-							>
-								<span className="text-sm font-bold leading-none">A</span>
-							</button>
-							<button
-								type="button"
-								onClick={onReset}
-								disabled={fontSize === 100}
-								className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-								title="Reset font size"
-							>
-								<ArrowCounterClockwise size={13} weight="bold" />
-							</button>
+						<div className="flex gap-1">
+							{fontSizes.map((s) => {
+								const isActive = fontSize === s;
+								return (
+									<button
+										key={s}
+										type="button"
+										onClick={() => onFontSizeChange(s)}
+										className={`flex-1 flex items-center justify-center px-2 py-1.5 rounded-lg text-[0.625rem] font-medium transition-colors ${
+											isActive
+												? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+												: 'text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
+										}`}
+									>
+										{s}%
+									</button>
+								);
+							})}
 						</div>
 					</div>
 				</div>

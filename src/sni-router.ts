@@ -117,7 +117,7 @@ export function startSniRouter(config: SniRouterConfig): void {
 		clientSocket.on('error', () => {});
 	});
 
-	server.listen(config.port, () => {
+	server.listen(config.port, '0.0.0.0', () => {
 		log.info(`SNI router listening on :${config.port}`);
 		for (const target of config.forwardTargets) {
 			log.info(`  ${target.label} (passthrough, dynamic IP)`);

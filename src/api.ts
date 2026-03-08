@@ -1,9 +1,10 @@
+import { HOST_ADDRESS } from './config';
 import { getDockerRoutes, getDockerTcpRoutes, getTraefikTarget } from './docker-watcher';
 import { getAllRoutes } from './router';
 import { getStaticRoutes, getStaticTcpRoutes } from './static-routes';
 import { getEdgeStats, getHostStats, getRecentRequests, getTotalRequests, getUptime } from './stats';
 
-const VITE_DEV_URL = 'http://localhost:5175';
+const VITE_DEV_URL = process.env.VITE_DEV_URL ?? 'http://localhost:5175';
 
 function json(data: unknown, status = 200): Response {
 	return new Response(JSON.stringify(data), {
@@ -22,6 +23,7 @@ function handleTopology(): Response {
 	const staticRoutes = getStaticRoutes();
 
 	return json({
+		mode: HOST_ADDRESS === 'host.docker.internal' ? 'docker' : 'host-native',
 		sniRouter: { port: 9443, listenPort: 443 },
 		httpsServer: { port: 9444 },
 		httpRedirect: { port: 9080, redirectPort: 80 },

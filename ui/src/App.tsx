@@ -47,7 +47,7 @@ export function App() {
 	const { data: topology, isLoading: topoLoading } = useTopology();
 	const { data: stats } = useStats();
 	const { theme, setTheme } = useTheme();
-	const { size: fontSize, increase, decrease, reset } = useFontSize();
+	const { size: fontSize, setSize: setFontSize, sizes: fontSizes, scale: fontScale } = useFontSize();
 	const { page, navigate } = useRoute();
 
 	if (topoLoading) {
@@ -97,18 +97,17 @@ export function App() {
 						theme={theme}
 						setTheme={setTheme}
 						fontSize={fontSize}
-						onIncrease={increase}
-						onDecrease={decrease}
-						onReset={reset}
+						fontSizes={fontSizes}
+						onFontSizeChange={setFontSize}
 					/>
 				</div>
 			</header>
 
 			{/* Content */}
 			<main className="px-4 pt-4 pb-3 space-y-3">
-				{page === 'dashboard' && <DashboardPage topology={topology} stats={stats} />}
+				{page === 'dashboard' && <DashboardPage topology={topology} stats={stats} scale={fontScale} />}
 				{page === 'activity' && <ActivityPage topology={topology} stats={stats} />}
-				{page === 'architecture' && <ArchitecturePage />}
+				{page === 'architecture' && <ArchitecturePage mode={topology?.mode ?? null} />}
 				{page === 'glossary' && <GlossaryPage />}
 				{page === 'endpoints' && <EndpointsPage />}
 			</main>

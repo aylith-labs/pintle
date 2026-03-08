@@ -20,7 +20,10 @@ export type ProxyStaticRoute = {
 	source: 'static';
 };
 
+export type RuntimeMode = 'docker' | 'host-native';
+
 export type ProxyTopology = {
+	mode: RuntimeMode;
 	sniRouter: { port: number; listenPort: number };
 	httpsServer: { port: number };
 	httpRedirect: { port: number; redirectPort: number };

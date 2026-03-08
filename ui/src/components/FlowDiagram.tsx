@@ -14,10 +14,11 @@ const nodeTypes: NodeTypes = {
 type FlowDiagramProps = {
 	topology: ProxyTopology | null;
 	stats: ProxyStats | null;
+	scale: number;
 };
 
-export function FlowDiagram({ topology, stats }: FlowDiagramProps) {
-	const { nodes, edges } = useFlowLayout(topology, stats);
+export function FlowDiagram({ topology, stats, scale }: FlowDiagramProps) {
+	const { nodes, edges } = useFlowLayout(topology, stats, scale);
 
 	return (
 		<div className="w-full flex-1 min-h-[300px] rounded-xl border border-gray-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">

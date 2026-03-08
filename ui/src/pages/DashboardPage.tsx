@@ -5,13 +5,14 @@ import type { ProxyStats, ProxyTopology } from '../types';
 type DashboardPageProps = {
 	topology: ProxyTopology | null;
 	stats: ProxyStats | null;
+	scale: number;
 };
 
-export function DashboardPage({ topology, stats }: DashboardPageProps) {
+export function DashboardPage({ topology, stats, scale }: DashboardPageProps) {
 	return (
 		<div className="flex flex-col gap-3 h-[calc(100vh-theme(spacing.14))]">
 			<StatsBar topology={topology} stats={stats} />
-			<FlowDiagram topology={topology} stats={stats} />
+			<FlowDiagram topology={topology} stats={stats} scale={scale} />
 		</div>
 	);
 }

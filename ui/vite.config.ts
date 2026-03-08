@@ -5,15 +5,15 @@ import { defineConfig } from 'vite';
 export default defineConfig({
 	plugins: [react(), tailwindcss()],
 	server: {
+		host: '0.0.0.0',
 		port: 5175,
 		strictPort: true,
 		allowedHosts: true,
 		hmr: {
-			// Connect HMR directly to Vite, bypassing the proxy's WebSocket relay
-			// Prevents ECONNRESET crashes when browser disconnects
-			host: 'localhost',
-			port: 5175,
-			protocol: 'ws',
+			// HMR goes through the proxy at proxy.lvh.me
+			host: `proxy.${process.env.BASE_DOMAIN ?? 'lvh.me'}`,
+			port: 443,
+			protocol: 'wss',
 		},
 	},
 	build: {

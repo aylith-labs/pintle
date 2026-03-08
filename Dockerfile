@@ -6,7 +6,6 @@ COPY package.json bun.lock ./
 RUN bun install --production
 
 COPY src/ src/
-COPY ui/dist/ ui/dist/
 
 EXPOSE 9443 9080
 

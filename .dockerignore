@@ -3,6 +3,5 @@ certs
 .claude
 docs
 scripts
-ui/node_modules
-ui/src
+ui
 *.md

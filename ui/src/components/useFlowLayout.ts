@@ -2,8 +2,8 @@ import { type Edge, MarkerType, type Node } from '@xyflow/react';
 import { useMemo } from 'react';
 import type { ProxyStats, ProxyTopology, RouteStats } from '../types';
 
-const COL = [0, 220, 460, 720];
-const ROW_HEIGHT = 90;
+const BASE_COL = [0, 220, 460, 720];
+const BASE_ROW_HEIGHT = 90;
 
 function edgeStyle(stats: RouteStats | undefined): { stroke: string; strokeWidth: number } {
 	if (!stats) return { stroke: '#6366f1', strokeWidth: 1.5 };
@@ -18,22 +18,27 @@ function edgeLabel(stats: RouteStats | undefined): string {
 	return `${stats.totalRequests} req`;
 }
 
-export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats | null) {
+export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats | null, scale = 1) {
 	const isDark = document.documentElement.classList.contains('dark');
 
 	return useMemo(() => {
 		if (!topology) return { nodes: [] as Node[], edges: [] as Edge[] };
 
+		const COL = BASE_COL.map((c) => c * scale);
+		const ROW_HEIGHT = BASE_ROW_HEIGHT * scale;
 		const labelBg = isDark ? '#09090b' : '#fafafa';
 
 		const nodes: Node[] = [];
 		const edges: Edge[] = [];
+		const ROW1 = 60 * scale;
+		const ROW2 = 200 * scale;
+		const labelFontSize = 10 * scale;
 
 		// Col 0: Browser
 		nodes.push({
 			id: 'browser',
 			type: 'infra',
-			position: { x: COL[0], y: 60 },
+			position: { x: COL[0], y: ROW1 },
 			data: { label: 'Browser', sublabel: 'HTTPS', port: 443, icon: 'globe' },
 			draggable: true,
 		});
@@ -42,7 +47,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 		nodes.push({
 			id: 'http-client',
 			type: 'infra',
-			position: { x: COL[0], y: 200 },
+			position: { x: COL[0], y: ROW2 },
 			data: { label: 'Browser', sublabel: 'HTTP', port: 80, icon: 'globe' },
 			draggable: true,
 		});
@@ -51,7 +56,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 		nodes.push({
 			id: 'sni-router',
 			type: 'infra',
-			position: { x: COL[1], y: 60 },
+			position: { x: COL[1], y: ROW1 },
 			data: {
 				label: 'SNI Router',
 				sublabel: 'TLS routing',
@@ -66,7 +71,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 		nodes.push({
 			id: 'http-redirect',
 			type: 'infra',
-			position: { x: COL[1], y: 200 },
+			position: { x: COL[1], y: ROW2 },
 			data: {
 				label: 'HTTP Redirect',
 				sublabel: '301 -> HTTPS',
@@ -81,7 +86,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 		nodes.push({
 			id: 'bun-https',
 			type: 'infra',
-			position: { x: COL[2], y: 60 },
+			position: { x: COL[2], y: ROW1 },
 			data: {
 				label: 'Bun HTTPS',
 				sublabel: 'Reverse proxy',
@@ -95,7 +100,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 		nodes.push({
 			id: 'traefik',
 			type: 'traefik',
-			position: { x: COL[2], y: 200 },
+			position: { x: COL[2], y: ROW2 },
 			data: {
 				ip: topology.traefik.ip,
 				port: topology.traefik.port,
@@ -120,7 +125,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			nodes.push({
 				id: nodeId,
 				type: 'service',
-				position: { x: COL[3], y: 10 + serviceIdx * ROW_HEIGHT },
+				position: { x: COL[3], y: 10 * scale + serviceIdx * ROW_HEIGHT },
 				data: {
 					hostname,
 					target: route.target,
@@ -143,7 +148,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 				label: edgeLabel(eStat),
 				style: edgeStyle(eStat),
 				markerEnd: { type: MarkerType.ArrowClosed, color: edgeStyle(eStat).stroke },
-				labelStyle: { fontSize: 10, fill: '#94a3b8' },
+				labelStyle: { fontSize: labelFontSize, fill: '#94a3b8' },
 				labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
 				labelBgPadding: [4, 6] as [number, number],
 				labelBgBorderRadius: 4,
@@ -170,7 +175,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			label: '*.lvh.me',
 			style: { stroke: '#6366f1', strokeWidth: 1.5 },
 			markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
-			labelStyle: { fontSize: 10, fill: '#94a3b8' },
+			labelStyle: { fontSize: labelFontSize, fill: '#94a3b8' },
 			labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
 			labelBgPadding: [4, 6] as [number, number],
 			labelBgBorderRadius: 4,
@@ -184,7 +189,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			label: '*.internal.example',
 			style: { stroke: '#f97316', strokeWidth: 1.5 },
 			markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316' },
-			labelStyle: { fontSize: 10, fill: '#94a3b8' },
+			labelStyle: { fontSize: labelFontSize, fill: '#94a3b8' },
 			labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
 			labelBgPadding: [4, 6] as [number, number],
 			labelBgBorderRadius: 4,
@@ -200,5 +205,5 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 		});
 
 		return { nodes, edges };
-	}, [topology, stats, isDark]);
+	}, [topology, stats, isDark, scale]);
 }

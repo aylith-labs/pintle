@@ -97,7 +97,8 @@ const httpsServer = Bun.serve<WsData>({
 			// Proxy Vite HMR WebSocket
 			if (req.headers.get('upgrade')?.toLowerCase() === 'websocket') {
 				const url = new URL(req.url);
-				const targetUrl = `ws://localhost:5175${url.pathname}${url.search}`;
+				const viteWsUrl = (process.env.VITE_DEV_URL ?? 'http://localhost:5175').replace('http://', 'ws://');
+			const targetUrl = `${viteWsUrl}${url.pathname}${url.search}`;
 				const upgraded = server.upgrade(req, { data: { targetUrl, hostname } });
 				if (upgraded) return undefined;
 				return new Response('WebSocket upgrade failed', { status: 400 });
