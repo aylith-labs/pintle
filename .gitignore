@@ -3,3 +3,8 @@ dist/
 certs/
 .env
 *.tsbuildinfo
+
+# Go
+/local-proxy
+internal/api/ui/dist/
+test-results/

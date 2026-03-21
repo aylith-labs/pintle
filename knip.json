@@ -1,5 +1,0 @@
-{
-	"entry": ["src/index.ts"],
-	"project": ["src/**/*.ts"],
-	"ignoreDependencies": ["bun-types", "@typescript/native-preview"]
-}

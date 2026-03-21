@@ -82,13 +82,13 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			draggable: true,
 		});
 
-		// Col 2: Bun HTTPS
+		// Col 2: HTTPS Server
 		nodes.push({
 			id: 'bun-https',
 			type: 'infra',
 			position: { x: COL[2], y: ROW1 },
 			data: {
-				label: 'Bun HTTPS',
+				label: 'HTTPS Server',
 				sublabel: 'Reverse proxy',
 				port: topology.httpsServer.port,
 				icon: 'server',
@@ -136,7 +136,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 				draggable: true,
 			});
 
-			// Edge from Bun HTTPS to service
+			// Edge from HTTPS Server to service
 			const edgeKey = `${hostname}->${route.target}`;
 			const eStat = stats?.edgeStats[edgeKey];
 
@@ -186,7 +186,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			source: 'sni-router',
 			target: 'traefik',
 			animated: true,
-			label: '*.internal.example',
+			label: topology.traefik.domains?.[0] ?? 'passthrough',
 			style: { stroke: '#f97316', strokeWidth: 1.5 },
 			markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316' },
 			labelStyle: { fontSize: labelFontSize, fill: '#94a3b8' },

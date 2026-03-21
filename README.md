@@ -1,6 +1,6 @@
 # local-proxy
 
-A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` (configurable) domains via SNI, auto-discovers Docker containers, and supports passthrough to other proxies like Traefik.
+A Go-based HTTPS reverse proxy for local development. Single static binary (~9 MB) with an embedded React dashboard. Routes `*.lvh.me` (configurable) domains via SNI, auto-discovers Docker containers, and supports passthrough to other proxies like Traefik.
 
 ## Architecture
 
@@ -8,9 +8,9 @@ A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` (config
   Docker mode:  443 -> container:9443,  80 -> container:9080
   Host-native:  iptables/pfctl 443 -> 9443,  80 -> 9080
 
-  :443 ──> SNI Router (:9443) ──┬──> Bun HTTPS (:9444) ──> Docker/static services
-           TLS ClientHello      │    *.lvh.me              home.lvh.me -> 172.19.0.6:5173
-           hostname parsing     │                          linux-settings.lvh.me -> localhost:5174
+  :443 ──> SNI Router (:9443) ──┬──> HTTPS Server (:9444) ──> Docker/static services
+           TLS ClientHello      │    *.lvh.me                  notes.lvh.me -> 172.19.0.6:5173
+           hostname parsing     │                              app.lvh.me -> localhost:5174
                                 │
                                 └──> Passthrough (TCP, no TLS termination)
                                      Configured domains -> Traefik/other proxy
@@ -18,16 +18,50 @@ A Bun-based HTTPS reverse proxy for local development. Routes `*.lvh.me` (config
   :80  ──> HTTP Redirect (:9080) ──> 301 -> https://
 ```
 
+- **Go binary** with `//go:embed` — dashboard UI compiled into the binary, no separate container
+- **Provider pattern** — Docker and File providers push config through an aggregator to the router (Traefik-inspired architecture)
 - **SNI routing** parses TLS ClientHello without terminating TLS, so passthrough targets keep their own certificates
-- **Port redirection** via iptables (Linux) or pfctl (macOS) redirects standard ports to high ports, coexisting with Docker's port bindings
+- **Port redirection** via iptables (Linux) or pfctl (macOS) redirects standard ports to high ports
 - **mkcert** wildcard cert for `*.lvh.me` (or custom `BASE_DOMAIN`) in `certs/`
+
+## Performance
+
+Rewritten from Bun to Go to fix connection pooling stalls under concurrent load (see [benchmark history](docs/benchmark-findings.md)).
+
+### Throughput (ab, 1000 requests, concurrency 50)
+
+| Target | Req/s | Failures |
+|--------|-------|----------|
+| Direct (localhost:5770) | 186 | 0 |
+| Via Go proxy | 260 | 0 |
+| Via Bun proxy (previous) | stalls after ~50 | timeout |
+
+The Go proxy is faster than direct access due to `http.Transport` connection pooling reusing upstream connections.
+
+### Full page load (Playwright, 250 resources, 5 runs averaged)
+
+| Metric | Direct | Via Go proxy | Overhead |
+|--------|--------|-------------|----------|
+| DOMContentLoaded | 1142ms | 1227ms | +85ms (7%) |
+| Load complete | 1147ms | 1232ms | +85ms (7%) |
+| Network idle | 2509ms | 2604ms | +95ms (4%) |
+
+~0.3ms per-request overhead — equivalent to Traefik/Caddy (same Go `net/http` stack, same TLS termination cost).
+
+### Docker image
+
+| | Bun (previous) | Go (current) |
+|--|----------------|--------------|
+| Image size | ~200 MB (oven/bun + node_modules) | 10 MB (FROM scratch) |
+| Containers | 2 (proxy + Vite UI) | 1 (binary with embedded UI) |
+| Runtime deps | Bun + node_modules | None (static binary) |
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) runtime (for development and host-native mode)
 - [mkcert](https://github.com/FiloSottile/mkcert) for local TLS certificates
 - Docker (for container auto-discovery and recommended Docker mode)
-- `sudo` access (only for host-native mode — iptables/pfctl rules)
+- [Go](https://go.dev) 1.23+ (only for building from source)
+- [Bun](https://bun.sh) (only for building the dashboard UI from source)
 
 ## Setup
 
@@ -39,11 +73,10 @@ mkcert -install
 mkcert -cert-file certs/lvh.me.pem -key-file certs/lvh.me-key.pem "*.lvh.me"
 
 # Optional: certs for passthrough domains (used as fallback when target proxy is unavailable)
-mkcert -cert-file certs/internal.example.pem -key-file certs/internal.example-key.pem "*.internal.example"
+mkcert -cert-file certs/example-local.com.pem -key-file certs/example-local.com-key.pem "*.example-local.com"
 
-# Install dependencies
-bun install
-cd ui && bun install && bun run build
+# Build
+make build
 ```
 
 Cert filenames must match `certs/${BASE_DOMAIN}.pem` and `certs/${BASE_DOMAIN}-key.pem`. Passthrough domain certs are optional — if missing, local-proxy logs a warning and skips the fallback TLS entry.
@@ -63,22 +96,26 @@ sudo ./scripts/stop.sh
 docker compose up -d
 ```
 
-Runs as a daemon with `restart: unless-stopped`. Docker handles port 443/80 binding — no sudo or iptables needed. Services are accessible at `https://home.lvh.me`, `https://proxy.lvh.me`, etc.
+Runs as a daemon with `restart: unless-stopped`. Docker handles port 443/80 binding — no sudo or iptables needed. Services are accessible at `https://notes.lvh.me`, `https://proxy.lvh.me`, etc.
 
-Traefik keeps running (without host port bindings) — local-proxy passes through `*.internal.example` traffic to Traefik's container IP via SNI.
+Traefik keeps running (without host port bindings) — local-proxy passes through `*.example-local.com` traffic to Traefik's container IP via SNI.
 
 Rebuild after code changes:
 ```bash
-cd ui && bun run build && cd .. && docker compose up -d --build
+docker compose up -d --build
 ```
 
 ### Host-native (alternative)
 
 ```bash
-# Adds iptables/pfctl rules, starts proxy, cleans up on exit
-bun run start
+# Build and run directly
+make build
+./local-proxy --port-redirect
 
-# Or manually remove rules
+# Or use the shell script wrapper
+./scripts/start.sh
+
+# Remove port redirect rules
 ./scripts/stop.sh
 ```
 
@@ -88,7 +125,7 @@ bun run start
 |--|--------|-------------|
 | Port 443/80 | Docker handles binding | iptables/pfctl (requires sudo) |
 | Auto-start | `restart: unless-stopped` | Manual or systemd |
-| Code changes | `docker compose up -d --build` | Instant (bun --watch) |
+| Code changes | `docker compose up -d --build` | `make build && ./local-proxy` |
 | Static routes | `host.docker.internal` (auto) | `localhost` (auto) |
 
 ### Development
@@ -96,14 +133,12 @@ bun run start
 Two terminals:
 
 ```bash
-# Terminal 1: Backend (auto-restarts on changes, no port redirection)
-bun run dev
+# Terminal 1: Go backend (proxies dashboard to Vite dev server)
+make dev
 
 # Terminal 2: Dashboard UI (Vite HMR)
 cd ui && bun run dev
 ```
-
-Access services at `https://localhost:9444` or configure port redirection for standard ports.
 
 ## Routing
 
@@ -139,11 +174,11 @@ Label priority: `local-proxy.*` > `traefik.*` > `caddy*`. If a container has mul
 
 ### Static routes (routes.yaml)
 
-For non-Docker services, define routes in `routes.yaml` (auto-reloaded on changes):
+For non-Docker services, define routes in `routes.yaml` (auto-reloaded on changes via fsnotify):
 
 ```yaml
 routes:
-  - host: linux-settings.lvh.me
+  - host: app.lvh.me
     target: 5174                          # port-only: auto-resolves host
   - host: remote-app.lvh.me
     target: http://192.168.1.50:3000      # full URL: used as-is
@@ -157,27 +192,27 @@ Domains that should be forwarded to another proxy (e.g., Traefik) without TLS te
 
 ```yaml
 passthrough:
-  - domain: internal.example
+  - domain: example-local.com
     target: traefik              # auto-discovers Traefik container IP
 ```
 
-Traffic for `*.internal.example` is passed through at the TCP level — local-proxy reads the SNI hostname from the TLS ClientHello but does not decrypt the traffic. The target proxy's container IP is auto-discovered on the shared Docker network.
+Traffic for `*.example-local.com` is passed through at the TCP level — local-proxy reads the SNI hostname from the TLS ClientHello but does not decrypt the traffic. The target proxy's container IP is auto-discovered on the shared Docker network.
 
 Passthrough domains also need mkcert certs in `certs/` (used as fallback when the target proxy is unavailable):
 ```bash
-mkcert -cert-file certs/internal.example.pem -key-file certs/internal.example-key.pem "*.internal.example"
+mkcert -cert-file certs/example-local.com.pem -key-file certs/example-local.com-key.pem "*.example-local.com"
 ```
 
 ## Coexistence with Traefik / Caddy
 
 local-proxy is designed to work **alongside** existing proxies, not replace them:
 
-- **local-proxy takes over ports 443/80** — any existing proxy (Traefik, Caddy) must stop binding these ports (either `docker stop traefik` or remove `ports:` from its docker-compose)
-- **Traefik container keeps running** — it still serves traffic via its container IP. local-proxy passes through configured domains (e.g., `*.internal.example`) to Traefik at the TCP level without TLS termination
+- **local-proxy takes over ports 443/80** — any existing proxy must stop binding these ports
+- **Traefik container keeps running** — local-proxy passes through configured domains to Traefik at the TCP level
 - **No re-labeling needed** — local-proxy reads Traefik and Caddy labels natively
-- **Gradual migration** — you can move services one at a time from Traefik/Caddy labels to `local-proxy.*` labels, or keep using the original labels indefinitely
+- **Gradual migration** — move services one at a time, or keep using original labels indefinitely
 
-To switch back to Traefik as the entry point: `docker compose down` (local-proxy) then `docker start traefik`.
+To switch back to Traefik: `docker compose down` then `docker start traefik`.
 
 ### What local-proxy is NOT
 
@@ -187,62 +222,70 @@ local-proxy is a **local development tool**. It is not a replacement for Traefik
 - No load balancing across replicas
 - No health checks or circuit breaking
 - No rate limiting or auth middleware
-- Single-threaded Bun runtime (not designed for high concurrency)
 
 For anything beyond local dev routing, use Traefik or Caddy directly.
 
 ## Docs
 
-- [Privileged Ports](docs/privileged-ports.md) — Why local-proxy uses iptables/pfctl and how other approaches (setcap, authbind, sysctl, Docker) compare
-- [Benchmark Findings](docs/benchmark-findings.md) — Bun fetch performance under concurrent load vs Traefik (unresolved)
+- [Privileged Ports](docs/privileged-ports.md) — Why local-proxy uses iptables/pfctl and how other approaches compare
+- [Benchmark Findings](docs/benchmark-findings.md) — Performance history: Bun stall issue and Go rewrite resolution
 
 ## Dashboard
 
 Live architecture visualization at `https://proxy.lvh.me`:
 
-- **Flow diagram** - Interactive topology map (React Flow) showing SNI router, Bun HTTPS, Traefik, and all service nodes
-- **Stats** - Total requests, uptime, active routes, error rate
-- **Request log** - Recent requests with method, host, path, status, and duration
-- **Light/dark theme** - Follows system preference with manual toggle
+- **Flow diagram** — Interactive topology map (React Flow) showing SNI router, HTTPS server, Traefik, and all service nodes
+- **Stats** — Total requests, uptime, active routes, error rate
+- **Request log** — Recent requests with method, host, path, status, and duration
+- **Light/dark theme** — Follows system preference with manual toggle
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `docker compose up -d` | Docker: daemon mode with port binding (recommended) |
-| `bun run dev` | Watch mode, backend only (no port redirection) |
-| `bun run start` | Host-native: port redirection + proxy (requires sudo) |
-| `bun run lint` | Format and lint with Biome |
-| `bun run typecheck` | TypeScript strict mode check |
-| `cd ui && bun run dev` | Dashboard UI with Vite HMR |
-| `cd ui && bun run build` | Build dashboard for static serving |
+| `make build` | Build UI + Go binary |
+| `make build-only` | Build Go binary only (skip UI) |
+| `make dev` | Go backend with Vite dev proxy |
+| `make test` | Run Go tests |
+| `make lint` | Go vet + UI lint |
+| `docker compose up -d` | Docker daemon mode (recommended) |
+| `docker compose up -d --build` | Rebuild and restart |
+| `./local-proxy --port-redirect` | Host-native with port redirection |
 
-## Environment Variables
+## CLI Flags
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BASE_DOMAIN` | `lvh.me` | Base domain for routing (`*.lvh.me`, `*.localtest.me`, etc.) |
-| `LISTEN_PORT` | `9443` | SNI router listen port |
-| `HTTP_PORT` | `9080` | HTTP redirect listen port |
-| `DOCKER_NETWORK` | `traefik` | Docker network for container discovery |
+```
+--base-domain     Base domain for routing (default: lvh.me, env: BASE_DOMAIN)
+--listen-port     HTTPS listen port (default: 9443, env: LISTEN_PORT)
+--http-port       HTTP redirect port (default: 9080, env: HTTP_PORT)
+--certs-dir       Path to certificates (default: ./certs, env: CERTS_DIR)
+--routes-file     Path to routes.yaml (default: ./routes.yaml, env: ROUTES_FILE)
+--port-redirect   Add iptables/pfctl rules on start, remove on exit
+--log-level       debug, info, warn, error (default: info, env: LOG_LEVEL)
+--log-format      text or json (default: text, env: LOG_FORMAT)
+```
+
+CLI flags override environment variables. Environment variables override defaults.
 
 ## Key Files
 
 ```
-src/
-  config.ts          BASE_DOMAIN and derived constants
-  index.ts           Entry: HTTPS + HTTP servers, WebSocket proxy
-  sni-router.ts      SNI-based TCP router (TLS ClientHello parsing)
-  proxy.ts           HTTP reverse proxy with timing instrumentation
-  router.ts          Route table (hostname+path -> target)
-  docker-watcher.ts  Docker event listener + container discovery (local-proxy/Traefik/Caddy labels)
-  static-routes.ts   YAML config loader with file watcher (routes + passthrough)
-  api.ts             Dashboard API + Vite dev server proxy
-  stats.ts           In-memory request metrics
-ui/                  React + Vite + Tailwind + React Flow dashboard
-routes.yaml          Static routes + passthrough domains
-scripts/
-  start.sh           Add port redirect rules (iptables/pfctl) + start proxy
-  stop.sh            Remove port redirect rules
-certs/               mkcert wildcard certs (not committed)
+cmd/local-proxy/
+  main.go              Entry point, provider wiring, signal handling
+internal/
+  config/              BASE_DOMAIN, HOST_ADDRESS, CLI flags, env vars
+  proxy/               HTTP reverse proxy (httputil.ReverseProxy) + WebSocket
+  router/              Route table (hostname+path -> target, RWMutex)
+  server/              SNI router, HTTPS/HTTP servers, TCP router
+  provider/docker/     Docker event watcher + label parsers (3 formats)
+  provider/file/       routes.yaml loader + fsnotify watcher
+  aggregator/          Merges provider configs (non-blocking channel)
+  tls/                 Certificate loading + dynamic SNI callback
+  stats/               Request metrics (circular buffer, per-host/edge)
+  api/                 REST API endpoints + embedded dashboard UI
+  logger/              Colored terminal logger
+ui/                    React 19 + TypeScript + Tailwind v4 + Vite dashboard
+routes.yaml            Static routes + passthrough domains
+certs/                 mkcert wildcard certs (not committed)
+scripts/               Port redirect rules (iptables/pfctl)
 ```

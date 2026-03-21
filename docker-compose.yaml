@@ -10,8 +10,8 @@ services:
       - '3306:3306'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./certs:/app/certs:ro
-      - ./routes.yaml:/app/routes.yaml:ro
+      - ./certs:/certs:ro
+      - ./routes.yaml:/routes.yaml:ro
     networks:
       - traefik
     extra_hosts:
@@ -19,20 +19,8 @@ services:
     environment:
       - BASE_DOMAIN=${BASE_DOMAIN:-lvh.me}
       - DOCKER_NETWORK=${DOCKER_NETWORK:-traefik}
-      - VITE_DEV_URL=http://ui:5175
-    depends_on:
-      - ui
-
-  ui:
-    image: oven/bun:latest
-    working_dir: /app
-    command: sh -c "bun install && bun run dev"
-    restart: unless-stopped
-    volumes:
-      - ./ui:/app
-      - /app/node_modules
-    networks:
-      - traefik
+      - CERTS_DIR=/certs
+      - ROUTES_FILE=/routes.yaml
 
 networks:
   traefik:

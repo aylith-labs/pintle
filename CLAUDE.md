@@ -1,21 +1,23 @@
 # local-proxy
 
 ## Project
-Bun-based HTTPS reverse proxy for local development only (not CI/production).
+Go-based HTTPS reverse proxy for local development (not CI/production).
+Single static binary with embedded React dashboard. Drop-in replacement for the previous Bun implementation.
 Configurable via `BASE_DOMAIN` env var (default: `lvh.me`), uses mkcert certs.
 Coexists with Traefik/Caddy via SNI passthrough for configured domains.
 
 ## Architecture
-- Two modes: Docker (recommended, `docker compose up -d`) or host-native (`bun run start`)
+- **Go binary** with `//go:embed` React dashboard (~9 MB stripped)
+- Provider pattern: Docker provider + File provider → Aggregator → Router
 - SNI router on :9443, Docker handles port 443/80 mapping (or iptables/pfctl in host-native mode)
-- mkcert wildcard cert for `*.${BASE_DOMAIN}` in `certs/` (filenames: `${BASE_DOMAIN}.pem`, `${BASE_DOMAIN}-key.pem`)
-- SNI-based routing: passthrough domains → target proxy (TCP, no TLS termination), `*.${BASE_DOMAIN}` → local Bun HTTPS
-- Passthrough domains configured in `routes.yaml` (not hardcoded)
-- Dashboard at `proxy.${BASE_DOMAIN}`
+- mkcert wildcard cert for `*.${BASE_DOMAIN}` in `certs/`
+- SNI-based routing: passthrough domains → target proxy (TCP, no TLS termination), `*.${BASE_DOMAIN}` → local HTTPS
+- Dashboard at `proxy.${BASE_DOMAIN}` (embedded, no separate Vite container)
 - Docker auto-discovery via `local-proxy.*`, `traefik.*`, and `caddy*` labels (priority: local-proxy > Traefik > Caddy)
 - Traefik container IP auto-discovered via Docker API
-- Static routes in `routes.yaml` for non-Docker apps (equivalent to Traefik's file provider)
-- WebSocket proxying for Vite HMR
+- Static routes in `routes.yaml` (equivalent to Traefik's file provider)
+- WebSocket proxying (Vite HMR)
+- TCP service routing (Redis, PostgreSQL, MySQL) with TLS termination
 
 ## Docker Labels
 ```yaml
@@ -41,26 +43,42 @@ labels:
 ```
 
 ## Commands
+- Build: `make build` (builds UI + Go binary)
+- Build binary only: `make build-only` (skip UI rebuild)
 - Docker: `docker compose up -d` (recommended, daemon mode)
-- Dev: `bun run dev` (watches for changes, no port redirection)
-- Start: `bun run start` (host-native, adds iptables/pfctl rules)
-- Lint: `bun run lint`
-- Type check: `bun run typecheck`
+- Dev: `make dev` (Go backend with Vite dev proxy)
+- Test: `make test`
+- Lint: `make lint`
 
-## Key Files
-- `src/config.ts` — `BASE_DOMAIN`, `HOST_ADDRESS` (auto-detects Docker via `/.dockerenv`)
-- `src/index.ts` — Entry: HTTPS + HTTP servers, WebSocket proxy
-- `src/proxy.ts` — HTTP request handler
-- `src/router.ts` — Route table (hostname+path -> target)
-- `src/sni-router.ts` — SNI-based TCP router (TLS ClientHello parsing)
-- `src/docker-watcher.ts` — Docker event listener + container discovery (local-proxy/Traefik/Caddy labels)
-- `src/static-routes.ts` — YAML config loader (routes + passthrough domains)
+## Key Files (Go)
+- `cmd/local-proxy/main.go` — Entry point, wiring, signal handling
+- `internal/config/config.go` — `BASE_DOMAIN`, `HOST_ADDRESS`, CLI flags, env vars
+- `internal/proxy/proxy.go` — HTTP reverse proxy (`httputil.ReverseProxy`)
+- `internal/proxy/websocket.go` — WebSocket upgrade + bidirectional pipe
+- `internal/router/router.go` — Route table (hostname+path → target, RWMutex)
+- `internal/server/sni.go` — SNI router (TLS ClientHello parsing + TCP passthrough)
+- `internal/server/tcp.go` — TCP service router (Redis, PostgreSQL, MySQL)
+- `internal/server/https.go` — HTTPS server with dynamic TLS cert selection
+- `internal/server/http.go` — HTTP → HTTPS redirect
+- `internal/provider/docker/docker.go` — Docker event watcher + container discovery
+- `internal/provider/docker/labels.go` — Label parsers (local-proxy, traefik, caddy)
+- `internal/provider/file/file.go` — routes.yaml loader + fsnotify watcher
+- `internal/aggregator/aggregator.go` — Merges provider configs, non-blocking channel
+- `internal/tls/manager.go` — Certificate loading + SNI callback
+- `internal/stats/stats.go` — Request metrics (circular buffer, per-host/edge)
+- `internal/api/api.go` — REST API endpoints
+- `internal/api/dashboard.go` — Embedded UI serving + Vite dev proxy fallback
+- `internal/logger/logger.go` — Colored terminal logger
+
+## Key Files (UI — unchanged)
+- `ui/` — React 19 + TypeScript + Tailwind v4 + Vite dashboard
 - `routes.yaml` — Static routes + passthrough domains
-- `scripts/start.sh` — port redirect rules (iptables/pfctl) + start bun
+- `scripts/start.sh` — port redirect rules (iptables/pfctl)
 - `scripts/stop.sh` — remove port redirect rules
 
 ## Operational Notes
 - Docker mode: stop Traefik/Caddy port bindings first (`docker stop traefik`), clean iptables (`sudo ./scripts/stop.sh`)
-- Passthrough certs are optional — if missing, local-proxy warns and skips fallback TLS (passthrough still works when target proxy is running)
+- Passthrough certs optional — if missing, warns and skips (passthrough still works when target proxy is running)
 - Static route targets: port-only (`5174`) auto-resolves to `localhost` (host) or `host.docker.internal` (Docker)
 - To switch back to Traefik: `docker compose down` then `docker start traefik`
+- Single container in Docker (no more separate UI service)

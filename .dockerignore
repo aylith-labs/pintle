@@ -1,7 +1,9 @@
 node_modules
+ui/node_modules
 certs
 .claude
 docs
 scripts
-ui
 *.md
+local-proxy
+internal/api/ui/dist

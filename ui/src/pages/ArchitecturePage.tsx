@@ -116,7 +116,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			<Section title="Overview">
 				<p>
 					local-proxy is a <Abbr>HTTPS</Abbr> reverse proxy for local development. It routes <code>*.lvh.me</code>{' '}
-					domains through a Bun-powered server and passes <code>*.internal.example</code> traffic through to Traefik
+					domains through a Go-based server and passes <code>*.example-local.com</code> traffic through to Traefik
 					when available. All traffic flows through a single entry point on port 443 using <Abbr>SNI</Abbr>-based
 					routing.
 				</p>
@@ -136,9 +136,9 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 							<DiagramRow left="Browser :443" arrow="iptables NAT" right="SNI Router :9443" note="port redirect" />
 						)}
 					</div>
-					<DiagramRow left="SNI Router" arrow="*.lvh.me" right="Bun HTTPS :9444" note="local TLS" />
-					<DiagramRow left="SNI Router" arrow="*.internal.example" right="Traefik :443" note="TCP passthrough" />
-					<DiagramRow left="Bun HTTPS" right="Docker containers" note="reverse proxy" />
+					<DiagramRow left="SNI Router" arrow="*.lvh.me" right="HTTPS Server :9444" note="local TLS" />
+					<DiagramRow left="SNI Router" arrow="*.example-local.com" right="Traefik :443" note="TCP passthrough" />
+					<DiagramRow left="HTTPS Server" right="Docker containers" note="reverse proxy" />
 
 					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-4 mb-3">
 						<Abbr>HTTP</Abbr> Traffic (port 80)
@@ -179,22 +179,22 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				</p>
 				<p>
 					This is called <strong>TCP passthrough</strong> — the router never decrypts traffic. This allows Traefik to
-					keep using its own certificates while Bun uses <Abbr>mkcert</Abbr> certificates, all on the same port 443.
+					keep using its own certificates while local-proxy uses <Abbr>mkcert</Abbr> certificates, all on the same port 443.
 				</p>
 			</Section>
 
 			{/* TLS Certificates */}
 			<Section title="TLS Certificates">
 				<p>
-					The Bun <Abbr>HTTPS</Abbr> server uses <Abbr>mkcert</Abbr> to generate locally-trusted wildcard certificates.
+					The <Abbr>HTTPS</Abbr> server uses <Abbr>mkcert</Abbr> to generate locally-trusted wildcard certificates.
 					Two certificate sets are configured via <Abbr>SNI</Abbr>:
 				</p>
 				<ul className="list-disc pl-4 space-y-1">
 					<li>
-						<code>*.lvh.me</code> — always handled by the Bun server
+						<code>*.lvh.me</code> — always handled by the HTTPS server
 					</li>
 					<li>
-						<code>*.internal.example</code> — used as fallback when Traefik is not running
+						<code>*.example-local.com</code> — used as fallback when Traefik is not running
 					</li>
 				</ul>
 				<p>
@@ -226,7 +226,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 						</div>
 						<code className="text-[0.6875rem] block space-y-0.5">
 							<div>traefik.enable: "true"</div>
-							<div>traefik.http.routers.app.rule: "Host(`app.internal.example`)"</div>
+							<div>traefik.http.routers.app.rule: "Host(`app.example-local.com`)"</div>
 							<div>traefik.http.services.app.loadbalancer.server.port: "3000"</div>
 						</code>
 					</div>
@@ -278,11 +278,11 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			{/* Traefik Fallback */}
 			<Section title="Traefik Fallback">
 				<p>
-					When Traefik is running, <code>*.internal.example</code> traffic passes through to it via <Abbr>TCP</Abbr>{' '}
+					When Traefik is running, <code>*.example-local.com</code> traffic passes through to it via <Abbr>TCP</Abbr>{' '}
 					passthrough. Traefik handles <Abbr>TLS</Abbr> termination with its own certificates.
 				</p>
 				<p>
-					When Traefik is <strong>not running</strong>, the <Abbr>SNI</Abbr> router falls back to the local Bun{' '}
+					When Traefik is <strong>not running</strong>, the <Abbr>SNI</Abbr> router falls back to the local{' '}
 					<Abbr>HTTPS</Abbr> server. Containers with Traefik labels are auto-discovered and routed directly using{' '}
 					<Abbr>mkcert</Abbr> certificates. No configuration change needed — just stop Traefik and everything still
 					works.
@@ -307,7 +307,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 								<td className="px-4 py-2">
 									<span className="inline-flex items-center gap-1.5">
 										<ModeBadge mode={mode} />
-										{isDocker ? 'Bun in Docker container' : 'Bun process on host'}
+										{isDocker ? 'Go binary in Docker (10 MB image)' : 'Go binary on host (~9 MB)'}
 									</span>
 								</td>
 							</tr>
@@ -333,7 +333,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Domains</td>
 								<td className="px-4 py-2">
-									<code>*.internal.example</code>
+									<code>*.example-local.com</code>
 								</td>
 								<td className="px-4 py-2">
 									<code>*.lvh.me</code> (no hosts file needed)
@@ -352,7 +352,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 								<td className="px-4 py-2">
 									<span className="inline-flex items-center gap-1.5">
 										<ModeBadge mode={mode} />
-										<code>{isDocker ? 'docker compose up -d' : 'bun run start'}</code>
+										<code>{isDocker ? 'docker compose up -d' : './local-proxy --port-redirect'}</code>
 									</span>
 								</td>
 							</tr>
@@ -366,7 +366,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Use case</td>
 								<td className="px-4 py-2">
-									Work apps (<code>*.internal.example</code>)
+									Passthrough apps (<code>*.example-local.com</code>)
 								</td>
 								<td className="px-4 py-2">
 									Personal projects (<code>*.lvh.me</code>)
