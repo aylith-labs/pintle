@@ -34,7 +34,7 @@ function ModeBadge({ mode }: { mode: RuntimeMode }) {
 			: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40';
 	return (
 		<span
-			className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[0.5625rem] font-medium ${color}`}
+			className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[0.5625rem] font-medium whitespace-nowrap shrink-0 ${color}`}
 		>
 			<Icon size={10} weight="bold" />
 			{label}
@@ -49,11 +49,9 @@ function ModeToggle({
 }: { mode: RuntimeMode; onChange: (m: RuntimeMode) => void; detectedMode: RuntimeMode | null }) {
 	return (
 		<div className="flex items-center gap-2">
-			{detectedMode && (
-				<span className="text-[0.625rem] text-gray-400 dark:text-zinc-500 mr-1">
-					detected: {detectedMode === 'docker' ? 'Docker' : 'host-native'}
-				</span>
-			)}
+			<span className="text-[0.625rem] text-gray-400 dark:text-zinc-500 mr-1">
+				Deployment mode:
+			</span>
 			<div className="flex rounded-md border border-gray-200/60 dark:border-zinc-700 overflow-hidden">
 				<button
 					type="button"
@@ -100,16 +98,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 					<FlowArrow size={18} weight="bold" className="text-indigo-500" />
 					<h1 className="text-sm font-semibold tracking-tight">Architecture</h1>
 				</div>
-				<div className="flex items-center gap-4">
-					<ModeToggle mode={mode} onChange={setMode} detectedMode={detectedMode} />
-					<a
-						href="#/"
-						className="text-[0.6875rem] font-medium text-indigo-500 hover:text-indigo-400 transition-colors flex items-center gap-1"
-					>
-						View Live Dashboard
-						<ArrowRight size={12} />
-					</a>
-				</div>
+				<ModeToggle mode={mode} onChange={setMode} detectedMode={detectedMode} />
 			</div>
 
 			{/* Overview */}
@@ -125,26 +114,24 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			{/* Traffic Flow */}
 			<Section title="How Traffic Flows">
 				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-2">
-					<div className="flex items-center gap-2 text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
-						<Abbr>HTTPS</Abbr> Traffic (port 443) <ModeBadge mode={mode} />
+					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
+						<Abbr>HTTPS</Abbr> Traffic (port 443)
 					</div>
-					{isDocker ? (
-						<DiagramRow left="Browser :443" arrow="Docker port map" right="SNI Router :9443" note="443→9443" />
-					) : (
-						<DiagramRow left="Browser :443" arrow="iptables NAT" right="SNI Router :9443" note="port redirect" />
-					)}
+					<div className="flex items-center gap-2">
+						<DiagramRow left="Browser :443" arrow={isDocker ? 'Docker port map' : 'iptables NAT'} right="SNI Router :9443" note={isDocker ? '443→9443' : 'port redirect'} />
+						<ModeBadge mode={mode} />
+					</div>
 					<DiagramRow left="SNI Router" arrow="*.lvh.me" right="HTTPS Server :9444" note="local TLS" />
 					<DiagramRow left="SNI Router" arrow="passthrough domains" right="Traefik :443" note="TCP passthrough" />
 					<DiagramRow left="HTTPS Server" right="Docker containers" note="reverse proxy" />
 
-					<div className="flex items-center gap-2 text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-4 mb-3">
-						<Abbr>HTTP</Abbr> Traffic (port 80) <ModeBadge mode={mode} />
+					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-4 mb-3">
+						<Abbr>HTTP</Abbr> Traffic (port 80)
 					</div>
-					{isDocker ? (
-						<DiagramRow left="Browser :80" arrow="Docker port map" right="Redirect :9080" note="80→9080, 301 to HTTPS" />
-					) : (
-						<DiagramRow left="Browser :80" arrow="iptables NAT" right="Redirect :9080" note="301 to HTTPS" />
-					)}
+					<div className="flex items-center gap-2">
+						<DiagramRow left="Browser :80" arrow={isDocker ? 'Docker port map' : 'iptables NAT'} right="Redirect :9080" note={isDocker ? '80→9080, 301 to HTTPS' : '301 to HTTPS'} />
+						<ModeBadge mode={mode} />
+					</div>
 
 					<div className="mt-3">
 						{isDocker ? (
