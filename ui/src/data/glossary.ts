@@ -14,6 +14,11 @@ export const glossary: Record<string, GlossaryEntry> = {
 		description:
 			'Translates human-readable domain names (like lvh.me) into IP addresses that computers use to connect.',
 	},
+	goroutine: {
+		term: 'Goroutine',
+		description:
+			'A lightweight thread managed by the Go runtime. Each goroutine uses ~2 KB of stack memory, allowing millions of concurrent tasks without the overhead of OS threads.',
+	},
 	HMR: {
 		term: 'Hot Module Replacement',
 		description:
@@ -32,6 +37,11 @@ export const glossary: Record<string, GlossaryEntry> = {
 	IP: {
 		term: 'Internet Protocol',
 		description: 'The network protocol that assigns addresses to devices and routes packets between them.',
+	},
+	'I/O': {
+		term: 'Input/Output',
+		description:
+			'Operations that read or write data — network requests, file access, database queries. In async runtimes, I/O is non-blocking so the program can handle other work while waiting.',
 	},
 	iptables: {
 		term: 'iptables',

@@ -383,10 +383,10 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 							Concurrency
 						</div>
 						<p>
-							Go spawns a goroutine per connection (~2 KB stack). Node/Bun/Deno use a single-threaded event loop —
+							Go spawns a <Abbr>goroutine</Abbr> per connection (~2 KB stack). Node/Bun/Deno use a single-threaded event loop —
 							fine for <Abbr>I/O</Abbr>, but a reverse proxy manages many concurrent <Abbr>TCP</Abbr> connections with
 							bidirectional data flow. <Abbr>SNI</Abbr> routing, WebSocket proxying, and <Abbr>TCP</Abbr> service routing
-							all do raw socket piping that maps naturally to goroutines.
+							all do raw socket piping that maps naturally to <Abbr>goroutine</Abbr>s.
 						</p>
 					</div>
 
