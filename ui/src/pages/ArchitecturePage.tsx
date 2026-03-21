@@ -62,6 +62,7 @@ function ModeToggle({
 							: 'text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
 					}`}
 				>
+					{detectedMode === 'docker' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
 					<Cube size={11} />
 					Docker
 				</button>
@@ -74,6 +75,7 @@ function ModeToggle({
 							: 'text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
 					}`}
 				>
+					{detectedMode === 'host-native' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
 					<Terminal size={11} />
 					Host-native
 				</button>
