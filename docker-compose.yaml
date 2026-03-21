@@ -11,7 +11,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./certs:/certs:ro
-      - ./routes.yaml:/routes.yaml:ro
+      - ${ROUTES_FILE:-~/.config/local-proxy/routes.yaml}:/routes.yaml:ro
     networks:
       - traefik
     extra_hosts:

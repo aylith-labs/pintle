@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -74,6 +75,18 @@ func Load() *Config {
 	flag.Parse()
 
 	cfg.DashboardHost = fmt.Sprintf("proxy.%s", cfg.BaseDomain)
+
+	// Resolve routes file: ./routes.yaml → ~/.config/local-proxy/routes.yaml
+	if cfg.RoutesFile == "./routes.yaml" {
+		if _, err := os.Stat(cfg.RoutesFile); os.IsNotExist(err) {
+			if home, err := os.UserHomeDir(); err == nil {
+				xdgPath := filepath.Join(home, ".config", "local-proxy", "routes.yaml")
+				if _, err := os.Stat(xdgPath); err == nil {
+					cfg.RoutesFile = xdgPath
+				}
+			}
+		}
+	}
 
 	if isDocker() {
 		cfg.HostAddress = "host.docker.internal"
