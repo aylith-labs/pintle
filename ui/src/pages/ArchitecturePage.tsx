@@ -289,6 +289,130 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				</p>
 			</Section>
 
+			{/* Why Go */}
+			<Section title="Why Go">
+				<p>
+					local-proxy was originally written in Bun (TypeScript) but rewritten in Go to fix fundamental reliability
+					issues. Go is uniquely suited for reverse proxies:
+				</p>
+
+				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
+					<div>
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-emerald-500 mb-1">
+							Concurrency
+						</div>
+						<p>
+							Go spawns a goroutine per connection (~2 KB stack). Node/Bun/Deno use a single-threaded event loop —
+							fine for <Abbr>I/O</Abbr>, but a reverse proxy manages many concurrent <Abbr>TCP</Abbr> connections with
+							bidirectional data flow. <Abbr>SNI</Abbr> routing, WebSocket proxying, and <Abbr>TCP</Abbr> service routing
+							all do raw socket piping that maps naturally to goroutines.
+						</p>
+					</div>
+
+					<div>
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-emerald-500 mb-1">
+							Connection pooling
+						</div>
+						<p>
+							Go's <code>http.Transport</code> has battle-tested connection pooling (used by every Go <Abbr>HTTP</Abbr>{' '}
+							client since 2012). Bun's <code>fetch()</code> has known socket reuse bugs that cause stalls at ~50
+							concurrent requests. The Go proxy handles 260 req/s where Bun stalled and timed out.
+						</p>
+					</div>
+
+					<div>
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-emerald-500 mb-1">
+							Static binary
+						</div>
+						<p>
+							<code>CGO_ENABLED=0 go build</code> produces a single ~9 MB file with zero runtime dependencies. Docker
+							image is 10 MB (<code>FROM scratch</code>). Node/Bun/Deno need a ~100-200 MB runtime plus{' '}
+							<code>node_modules</code>.
+						</p>
+					</div>
+
+					<div>
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-emerald-500 mb-1">
+							Standard library
+						</div>
+						<p>
+							Go's stdlib includes a production-grade reverse proxy (<code>httputil.ReverseProxy</code>), <Abbr>TLS</Abbr>{' '}
+							server with dynamic certificate selection, and raw <Abbr>TCP</Abbr> listeners. In Node/Bun these require
+							third-party packages or manual implementation.
+						</p>
+					</div>
+
+					<div>
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-emerald-500 mb-1">
+							Embedded dashboard
+						</div>
+						<p>
+							<code>{'//go:embed'}</code> compiles the React UI into the binary. No separate Vite container, no static
+							file serving setup — the dashboard just works out of the binary.
+						</p>
+					</div>
+				</div>
+
+				<div className="rounded-lg border border-gray-200/60 dark:border-zinc-800 overflow-hidden mt-4">
+					<table className="w-full text-xs">
+						<thead className="bg-gray-50 dark:bg-zinc-900">
+							<tr>
+								<th className="text-left px-4 py-2.5 font-semibold text-gray-500 dark:text-zinc-400 w-1/3" />
+								<th className="text-left px-4 py-2.5 font-semibold text-indigo-500">Go</th>
+								<th className="text-left px-4 py-2.5 font-semibold text-amber-500">Node / Bun / Deno</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60">
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Concurrency</td>
+								<td className="px-4 py-2">Goroutine per connection (~2 KB)</td>
+								<td className="px-4 py-2">Single-threaded event loop</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Proxy throughput</td>
+								<td className="px-4 py-2 text-emerald-600 dark:text-emerald-400">260 req/s, 0 failures</td>
+								<td className="px-4 py-2 text-red-500">Stalls after ~50 requests</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Page load overhead</td>
+								<td className="px-4 py-2">+85ms / 7% (250 resources)</td>
+								<td className="px-4 py-2">N/A (stalls under load)</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Binary size</td>
+								<td className="px-4 py-2">~9 MB (static, no deps)</td>
+								<td className="px-4 py-2">~100-200 MB (runtime + node_modules)</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Docker image</td>
+								<td className="px-4 py-2">10 MB (FROM scratch)</td>
+								<td className="px-4 py-2">~200 MB + separate UI container</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Reverse proxy</td>
+								<td className="px-4 py-2">stdlib <code>httputil.ReverseProxy</code></td>
+								<td className="px-4 py-2">Manual or third-party</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">TLS / SNI</td>
+								<td className="px-4 py-2">stdlib <code>crypto/tls</code></td>
+								<td className="px-4 py-2">stdlib (adequate)</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Docker SDK</td>
+								<td className="px-4 py-2">First-party (Docker is Go)</td>
+								<td className="px-4 py-2">Community wrapper (dockerode)</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Embed assets</td>
+								<td className="px-4 py-2"><code>{'//go:embed'}</code> (built-in)</td>
+								<td className="px-4 py-2">Requires bundler or separate server</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</Section>
+
 			{/* Comparison */}
 			<Section title="Traefik vs local-proxy">
 				<div className="rounded-lg border border-gray-200/60 dark:border-zinc-800 overflow-hidden mt-2">
