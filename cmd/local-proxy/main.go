@@ -138,28 +138,13 @@ func main() {
 		hostname := strings.Split(r.Host, ":")[0]
 
 		if hostname == cfg.DashboardHost {
-			// WebSocket proxy for Vite HMR
-			if proxy.IsWebSocket(r) {
-				viteURL := cfg.ViteDevURL
-				if viteURL == "" {
-					viteURL = "http://localhost:5175"
-				}
-				wsURL := strings.Replace(viteURL, "http://", "ws://", 1)
-				targetURL := wsURL + r.URL.Path
-				if r.URL.RawQuery != "" {
-					targetURL += "?" + r.URL.RawQuery
-				}
-				proxy.ProxyWebSocket(w, r, targetURL)
-				return
-			}
-
 			// API endpoints
 			if apiHandler.IsAPIRequest(r.URL.Path) || r.Method == "OPTIONS" {
 				apiHandler.ServeHTTP(w, r)
 				return
 			}
 
-			// Dashboard UI
+			// Dashboard UI (handles WebSocket upgrades natively in dev mode)
 			dashboardHandler.ServeHTTP(w, r)
 			return
 		}
