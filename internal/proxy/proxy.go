@@ -59,6 +59,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 
+	isUpgrade := r.Header.Get("Upgrade") != ""
+
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = targetURL.Scheme
@@ -71,7 +73,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Set("X-Forwarded-For", r.RemoteAddr)
 			req.Header.Set("X-Forwarded-Proto", "https")
 			req.Header.Set("X-Forwarded-Host", hostname)
-			req.Host = targetURL.Host
+			// Don't override Host for WebSocket upgrades — upstream may validate it
+			if !isUpgrade {
+				req.Host = targetURL.Host
+			}
 		},
 		Transport: h.transport,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -100,8 +105,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Status:     resp.StatusCode,
 				DurationMs: durationMs,
 			})
-			// Remove hop-by-hop headers
-			resp.Header.Del("Transfer-Encoding")
 			return nil
 		},
 	}

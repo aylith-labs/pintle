@@ -164,23 +164,7 @@ func main() {
 			return
 		}
 
-		// WebSocket proxy for other hosts
-		if proxy.IsWebSocket(r) {
-			result := rtr.Resolve(hostname, r.URL.Path)
-			if result != nil {
-				wsTarget := strings.Replace(result.Target, "http://", "ws://", 1)
-				targetURL := wsTarget + result.RewrittenPath
-				if r.URL.RawQuery != "" {
-					targetURL += "?" + r.URL.RawQuery
-				}
-				proxy.ProxyWebSocket(w, r, targetURL)
-				return
-			}
-			http.Error(w, "WebSocket upgrade failed", http.StatusBadRequest)
-			return
-		}
-
-		// Regular proxy
+		// Regular proxy (httputil.ReverseProxy handles WebSocket upgrades natively)
 		proxyHandler.ServeHTTP(w, r)
 	})
 
