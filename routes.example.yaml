@@ -1,0 +1,23 @@
+# Copy to routes.yaml and customize for your setup:
+#   cp routes.example.yaml routes.yaml
+#
+# Target formats:
+#   port-only (5174)    — resolves to localhost or host.docker.internal automatically
+#   full URL            — http://192.168.1.50:3000, used as-is
+
+passthrough: []
+  # - domain: example-local.com
+  #   target: traefik
+
+routes: []
+  # - host: app.lvh.me
+  #   target: 5174
+  # - host: api.lvh.me
+  #   target: http://192.168.1.50:3000
+  #   path: /api
+  #   strip: true
+
+tcp: []
+  # - host: db.lvh.me
+  #   target: 5432
+  #   listen: 5432

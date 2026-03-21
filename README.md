@@ -75,6 +75,9 @@ mkcert -cert-file certs/lvh.me.pem -key-file certs/lvh.me-key.pem "*.lvh.me"
 # Optional: certs for passthrough domains (used as fallback when target proxy is unavailable)
 mkcert -cert-file certs/example-local.com.pem -key-file certs/example-local.com-key.pem "*.example-local.com"
 
+# Create routes config
+cp routes.example.yaml routes.yaml
+
 # Build
 make build
 ```

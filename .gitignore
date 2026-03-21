@@ -4,6 +4,7 @@ certs/
 .env
 *.tsbuildinfo
 test-results/
+routes.yaml
 
 # Go
 /local-proxy
