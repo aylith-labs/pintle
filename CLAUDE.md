@@ -2,17 +2,17 @@
 
 ## Project
 Go-based HTTPS reverse proxy for local development (not CI/production).
-Single static binary with embedded React dashboard. Drop-in replacement for the previous Bun implementation.
+Single static binary with embedded React dashboard (~9 MB, 10 MB Docker image).
 Configurable via `BASE_DOMAIN` env var (default: `lvh.me`), uses mkcert certs.
 Coexists with Traefik/Caddy via SNI passthrough for configured domains.
 
 ## Architecture
-- **Go binary** with `//go:embed` React dashboard (~9 MB stripped)
+- **Go binary** with `//go:embed` React dashboard
 - Provider pattern: Docker provider + File provider → Aggregator → Router
 - SNI router on :9443, Docker handles port 443/80 mapping (or iptables/pfctl in host-native mode)
 - mkcert wildcard cert for `*.${BASE_DOMAIN}` in `certs/`
 - SNI-based routing: passthrough domains → target proxy (TCP, no TLS termination), `*.${BASE_DOMAIN}` → local HTTPS
-- Dashboard at `proxy.${BASE_DOMAIN}` (embedded, no separate Vite container)
+- Dashboard at `proxy.${BASE_DOMAIN}` (embedded in production, Vite HMR in dev)
 - Docker auto-discovery via `local-proxy.*`, `traefik.*`, and `caddy*` labels (priority: local-proxy > Traefik > Caddy)
 - Traefik container IP auto-discovered via Docker API
 - Static routes in `routes.yaml` (equivalent to Traefik's file provider)
@@ -43,16 +43,24 @@ labels:
 ```
 
 ## Commands
-- Build: `make build` (builds UI + Go binary)
-- Build binary only: `make build-only` (skip UI rebuild)
-- Docker: `docker compose up -d` (recommended, daemon mode)
-- Dev: `make dev` (Go backend with Vite dev proxy)
-- Test: `make test`
-- Lint: `make lint`
+- **Production**: `docker compose up -d --build` (single container, embedded UI, restart: unless-stopped)
+- **Dev with HMR**: `make docker-dev` (adds Vite HMR container via compose profile)
+- **Stop dev**: `make docker-dev-down` (stops both, then `docker compose up -d` for production)
+- **Local dev** (requires Go on host): `make dev` + `cd ui && bun run dev` (two terminals)
+- **Build binary**: `make build` (builds UI + Go binary)
+- **Build binary only**: `make build-only` (skip UI rebuild)
+- **Test**: `make test`
+- **Lint**: `make lint`
+
+## Configuration
+- `routes.yaml` — auto-discovered from `./routes.yaml` or `~/.config/local-proxy/routes.yaml`
+- `routes.example.yaml` — template to copy to `~/.config/local-proxy/routes.yaml`
+- `certs/` — mkcert wildcard certs (not committed, gitignored)
+- `routes.yaml` is gitignored (machine-specific, may contain private domains)
 
 ## Key Files (Go)
 - `cmd/local-proxy/main.go` — Entry point, wiring, signal handling
-- `internal/config/config.go` — `BASE_DOMAIN`, `HOST_ADDRESS`, CLI flags, env vars
+- `internal/config/config.go` — `BASE_DOMAIN`, `HOST_ADDRESS`, CLI flags, env vars, routes.yaml auto-discovery
 - `internal/proxy/proxy.go` — HTTP reverse proxy (`httputil.ReverseProxy`)
 - `internal/proxy/websocket.go` — WebSocket upgrade + bidirectional pipe
 - `internal/router/router.go` — Route table (hostname+path → target, RWMutex)
@@ -70,9 +78,9 @@ labels:
 - `internal/api/dashboard.go` — Embedded UI serving + Vite dev proxy fallback
 - `internal/logger/logger.go` — Colored terminal logger
 
-## Key Files (UI — unchanged)
+## Key Files (UI)
 - `ui/` — React 19 + TypeScript + Tailwind v4 + Vite dashboard
-- `routes.yaml` — Static routes + passthrough domains
+- `routes.example.yaml` — Static routes template
 - `scripts/start.sh` — port redirect rules (iptables/pfctl)
 - `scripts/stop.sh` — remove port redirect rules
 
@@ -81,4 +89,6 @@ labels:
 - Passthrough certs optional — if missing, warns and skips (passthrough still works when target proxy is running)
 - Static route targets: port-only (`5174`) auto-resolves to `localhost` (host) or `host.docker.internal` (Docker)
 - To switch back to Traefik: `docker compose down` then `docker start traefik`
-- Single container in Docker (no more separate UI service)
+- Production: single container, embedded UI, `restart: unless-stopped`
+- Dev: `make docker-dev` adds Vite HMR container via compose `dev` profile
+- `.dockerignore` uses Go `filepath.Match` rules (NOT gitignore) — use `**` for recursive patterns

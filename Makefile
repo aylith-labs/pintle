@@ -3,7 +3,7 @@ VERSION = $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS = -s -w -X main.version=$(VERSION)
 GO = go
 
-.PHONY: all ui build test lint clean dev docker
+.PHONY: all ui build test lint clean dev docker docker-dev docker-dev-down
 
 all: build
 
@@ -34,3 +34,9 @@ dev:
 
 docker:
 	docker compose up -d --build
+
+docker-dev:
+	VITE_DEV_URL=http://ui:5175 docker compose --profile dev up -d --build
+
+docker-dev-down:
+	docker compose --profile dev down
