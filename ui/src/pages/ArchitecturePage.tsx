@@ -125,35 +125,28 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			{/* Traffic Flow */}
 			<Section title="How Traffic Flows">
 				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-2">
-					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
-						<Abbr>HTTPS</Abbr> Traffic (port 443)
+					<div className="flex items-center gap-2 text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
+						<Abbr>HTTPS</Abbr> Traffic (port 443) <ModeBadge mode={mode} />
 					</div>
-					<div className="flex items-center gap-2">
-						<ModeBadge mode={mode} />
-						{isDocker ? (
-							<DiagramRow left="Browser :443" arrow="Docker port map" right="SNI Router :9443" note="443→9443" />
-						) : (
-							<DiagramRow left="Browser :443" arrow="iptables NAT" right="SNI Router :9443" note="port redirect" />
-						)}
-					</div>
+					{isDocker ? (
+						<DiagramRow left="Browser :443" arrow="Docker port map" right="SNI Router :9443" note="443→9443" />
+					) : (
+						<DiagramRow left="Browser :443" arrow="iptables NAT" right="SNI Router :9443" note="port redirect" />
+					)}
 					<DiagramRow left="SNI Router" arrow="*.lvh.me" right="HTTPS Server :9444" note="local TLS" />
-					<DiagramRow left="SNI Router" arrow="*.example-local.com" right="Traefik :443" note="TCP passthrough" />
+					<DiagramRow left="SNI Router" arrow="passthrough domains" right="Traefik :443" note="TCP passthrough" />
 					<DiagramRow left="HTTPS Server" right="Docker containers" note="reverse proxy" />
 
-					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-4 mb-3">
-						<Abbr>HTTP</Abbr> Traffic (port 80)
+					<div className="flex items-center gap-2 text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-4 mb-3">
+						<Abbr>HTTP</Abbr> Traffic (port 80) <ModeBadge mode={mode} />
 					</div>
-					<div className="flex items-center gap-2">
-						<ModeBadge mode={mode} />
-						{isDocker ? (
-							<DiagramRow left="Browser :80" arrow="Docker port map" right="Redirect :9080" note="80→9080, 301 to HTTPS" />
-						) : (
-							<DiagramRow left="Browser :80" arrow="iptables NAT" right="Redirect :9080" note="301 to HTTPS" />
-						)}
-					</div>
+					{isDocker ? (
+						<DiagramRow left="Browser :80" arrow="Docker port map" right="Redirect :9080" note="80→9080, 301 to HTTPS" />
+					) : (
+						<DiagramRow left="Browser :80" arrow="iptables NAT" right="Redirect :9080" note="301 to HTTPS" />
+					)}
 
-					<div className="flex items-start gap-2 mt-3">
-						<ModeBadge mode={mode} />
+					<div className="mt-3">
 						{isDocker ? (
 							<p className="text-[0.625rem] text-gray-400 dark:text-zinc-500">
 								<strong>Windows <Abbr>WSL</Abbr> note:</strong> You may also need{' '}
@@ -289,6 +282,94 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				</p>
 			</Section>
 
+			{/* Comparison */}
+			<Section title="Traefik vs local-proxy">
+				<div className="rounded-lg border border-gray-200/60 dark:border-zinc-800 overflow-hidden mt-2">
+					<table className="w-full text-xs">
+						<thead className="bg-gray-50 dark:bg-zinc-900">
+							<tr>
+								<th className="text-left px-4 py-2.5 font-semibold text-gray-500 dark:text-zinc-400 w-1/3" />
+								<th className="text-left px-4 py-2.5 font-semibold text-orange-500">Traefik</th>
+								<th className="text-left px-4 py-2.5 font-semibold text-indigo-500">local-proxy</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60">
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Runtime</td>
+								<td className="px-4 py-2">Go binary in Docker container</td>
+								<td className="px-4 py-2">
+									<span className="inline-flex items-center gap-1.5">
+										<ModeBadge mode={mode} />
+										{isDocker ? 'Go binary in Docker (10 MB image)' : 'Go binary on host (~9 MB)'}
+									</span>
+								</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Config</td>
+								<td className="px-4 py-2">YAML files + Docker labels (verbose)</td>
+								<td className="px-4 py-2">
+									Simple <code>local-proxy.*</code> labels + <code>routes.yaml</code>
+								</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Certificates</td>
+								<td className="px-4 py-2">ACME / manual cert config</td>
+								<td className="px-4 py-2">
+									<Abbr>mkcert</Abbr> wildcard certs, auto-trusted
+								</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Discovery</td>
+								<td className="px-4 py-2">Docker labels only</td>
+								<td className="px-4 py-2">Docker labels + static routes + Traefik label parsing</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Domains</td>
+								<td className="px-4 py-2">
+									<code>*.example-local.com</code>
+								</td>
+								<td className="px-4 py-2">
+									<code>*.lvh.me</code> (no hosts file needed)
+								</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Dashboard</td>
+								<td className="px-4 py-2">Built-in web UI</td>
+								<td className="px-4 py-2">
+									Custom React UI at <code>proxy.lvh.me</code>
+								</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Startup</td>
+								<td className="px-4 py-2">Docker container boot (~2-5s)</td>
+								<td className="px-4 py-2">
+									<span className="inline-flex items-center gap-1.5">
+										<ModeBadge mode={mode} />
+										<code>{isDocker ? 'docker compose up -d' : './local-proxy --port-redirect'}</code>
+									</span>
+								</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">WebSocket</td>
+								<td className="px-4 py-2">Requires middleware config</td>
+								<td className="px-4 py-2">
+									Native support (Vite <Abbr>HMR</Abbr>, etc.)
+								</td>
+							</tr>
+							<tr>
+								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Use case</td>
+								<td className="px-4 py-2">
+									Passthrough apps (<code>*.example-local.com</code>)
+								</td>
+								<td className="px-4 py-2">
+									Personal projects (<code>*.lvh.me</code>)
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</Section>
+
 			{/* Why Go */}
 			<Section title="Why Go">
 				<p>
@@ -407,94 +488,6 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Embed assets</td>
 								<td className="px-4 py-2"><code>{'//go:embed'}</code> (built-in)</td>
 								<td className="px-4 py-2">Requires bundler or separate server</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</Section>
-
-			{/* Comparison */}
-			<Section title="Traefik vs local-proxy">
-				<div className="rounded-lg border border-gray-200/60 dark:border-zinc-800 overflow-hidden mt-2">
-					<table className="w-full text-xs">
-						<thead className="bg-gray-50 dark:bg-zinc-900">
-							<tr>
-								<th className="text-left px-4 py-2.5 font-semibold text-gray-500 dark:text-zinc-400 w-1/3" />
-								<th className="text-left px-4 py-2.5 font-semibold text-orange-500">Traefik</th>
-								<th className="text-left px-4 py-2.5 font-semibold text-indigo-500">local-proxy</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60">
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Runtime</td>
-								<td className="px-4 py-2">Go binary in Docker container</td>
-								<td className="px-4 py-2">
-									<span className="inline-flex items-center gap-1.5">
-										<ModeBadge mode={mode} />
-										{isDocker ? 'Go binary in Docker (10 MB image)' : 'Go binary on host (~9 MB)'}
-									</span>
-								</td>
-							</tr>
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Config</td>
-								<td className="px-4 py-2">YAML files + Docker labels (verbose)</td>
-								<td className="px-4 py-2">
-									Simple <code>local-proxy.*</code> labels + <code>routes.yaml</code>
-								</td>
-							</tr>
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Certificates</td>
-								<td className="px-4 py-2">ACME / manual cert config</td>
-								<td className="px-4 py-2">
-									<Abbr>mkcert</Abbr> wildcard certs, auto-trusted
-								</td>
-							</tr>
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Discovery</td>
-								<td className="px-4 py-2">Docker labels only</td>
-								<td className="px-4 py-2">Docker labels + static routes + Traefik label parsing</td>
-							</tr>
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Domains</td>
-								<td className="px-4 py-2">
-									<code>*.example-local.com</code>
-								</td>
-								<td className="px-4 py-2">
-									<code>*.lvh.me</code> (no hosts file needed)
-								</td>
-							</tr>
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Dashboard</td>
-								<td className="px-4 py-2">Built-in web UI</td>
-								<td className="px-4 py-2">
-									Custom React UI at <code>proxy.lvh.me</code>
-								</td>
-							</tr>
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Startup</td>
-								<td className="px-4 py-2">Docker container boot (~2-5s)</td>
-								<td className="px-4 py-2">
-									<span className="inline-flex items-center gap-1.5">
-										<ModeBadge mode={mode} />
-										<code>{isDocker ? 'docker compose up -d' : './local-proxy --port-redirect'}</code>
-									</span>
-								</td>
-							</tr>
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">WebSocket</td>
-								<td className="px-4 py-2">Requires middleware config</td>
-								<td className="px-4 py-2">
-									Native support (Vite <Abbr>HMR</Abbr>, etc.)
-								</td>
-							</tr>
-							<tr>
-								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Use case</td>
-								<td className="px-4 py-2">
-									Passthrough apps (<code>*.example-local.com</code>)
-								</td>
-								<td className="px-4 py-2">
-									Personal projects (<code>*.lvh.me</code>)
-								</td>
 							</tr>
 						</tbody>
 					</table>
