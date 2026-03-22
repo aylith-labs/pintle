@@ -3,7 +3,7 @@ VERSION = $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS = -s -w -X main.version=$(VERSION)
 GO = go
 
-.PHONY: all ui build test lint clean dev docker docker-dev docker-dev-down
+.PHONY: all ui build test lint clean dev docker docker-dev docker-dev-down sync-hosts
 
 all: build
 
@@ -40,3 +40,6 @@ docker-dev:
 
 docker-dev-down:
 	docker compose --profile dev down
+
+sync-hosts:
+	@bash scripts/sync-hosts.sh
