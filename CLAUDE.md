@@ -51,6 +51,7 @@ labels:
 - **Build binary only**: `make build-only` (skip UI rebuild)
 - **Test**: `make test`
 - **Lint**: `make lint`
+- **Sync hosts**: `make sync-hosts` (updates Windows hosts file from current routes, requires Admin)
 
 ## Configuration
 - `routes.yaml` — auto-discovered from `./routes.yaml` or `~/.config/local-proxy/routes.yaml`
