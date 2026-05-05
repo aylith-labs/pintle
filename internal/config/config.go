@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/steven-pribilinskiy/local-proxy/internal/hostdetect"
 )
 
 type Config struct {
@@ -17,6 +19,7 @@ type Config struct {
 	CertsDir      string
 	RoutesFile    string
 	HostAddress   string
+	InDocker      bool
 	ViteDevURL    string
 	LogLevel      string
 	LogFormat     string
@@ -44,11 +47,6 @@ func envIntOrDefault(key string, defaultVal int) int {
 		}
 	}
 	return defaultVal
-}
-
-func isDocker() bool {
-	_, err := os.Stat("/.dockerenv")
-	return err == nil
 }
 
 func Load() *Config {
@@ -88,11 +86,9 @@ func Load() *Config {
 		}
 	}
 
-	if isDocker() {
-		cfg.HostAddress = "host.docker.internal"
-	} else {
-		cfg.HostAddress = "localhost"
-	}
+	cfg.HostAddress = hostdetect.Detect()
+	_, err := os.Stat("/.dockerenv")
+	cfg.InDocker = err == nil
 
 	return cfg
 }

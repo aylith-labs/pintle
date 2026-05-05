@@ -59,8 +59,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 
-	isUpgrade := r.Header.Get("Upgrade") != ""
-
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = targetURL.Scheme
@@ -73,13 +71,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Set("X-Forwarded-For", r.RemoteAddr)
 			req.Header.Set("X-Forwarded-Proto", "https")
 			req.Header.Set("X-Forwarded-Host", hostname)
-			// Preserve the client's Host header so backends that build URLs
-			// from r.Host (e.g. Zitadel's Console environment.json) see the
-			// canonical hostname, not the container's bind address. The
-			// reverse-proxy transport routes by req.URL.Host (set above) and
-			// sends the Host header from req.Host — leaving req.Host nil/r.Host
-			// makes httputil.ReverseProxy use the original incoming Host.
-			_ = isUpgrade // intentionally not overriding for WS either
+			// Preserve the client's Host header so upstreams that build URLs
+			// from it (e.g. Zitadel's Console environment.json) or validate it
+			// (e.g. Vite's allowedHosts) see the public hostname, not the
+			// container's bind address. httputil.ReverseProxy routes by
+			// req.URL.Host (set above) and sends req.Host as the Host header;
+			// leaving it as the original incoming Host preserves it.
 		},
 		Transport: h.transport,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {

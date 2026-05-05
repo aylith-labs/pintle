@@ -95,7 +95,7 @@ func (h *Handler) handleTopology(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mode := "host-native"
-	if h.cfg.HostAddress == "host.docker.internal" {
+	if h.cfg.InDocker {
 		mode = "docker"
 	}
 

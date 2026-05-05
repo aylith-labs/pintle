@@ -3,6 +3,8 @@ package file
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -57,10 +59,40 @@ func (f *FileProvider) resolveTarget(target interface{}) string {
 		if portOnlyRegex.MatchString(v) {
 			return fmt.Sprintf("http://%s:%s", f.hostAddress, v)
 		}
-		return v
+		return f.rewriteHostInURL(v)
 	default:
 		return fmt.Sprintf("%v", target)
 	}
+}
+
+// rewriteHostInURL replaces "host.docker.internal" in a full URL with the
+// detected host address when that detection produced a real IP. This lets
+// existing routes.yaml files keep working on Docker CE / WSL, where the
+// default host-gateway mapping points at an unreachable bridge IP.
+//
+// `host.wsl.internal` is intentionally NOT rewritten — it's an opt-in
+// sentinel for routes that need the WSL2 Linux host (not the Windows side).
+// It resolves via the container's /etc/hosts (added in docker-compose
+// extra_hosts as `host.wsl.internal:host-gateway`).
+func (f *FileProvider) rewriteHostInURL(raw string) string {
+	if f.hostAddress == "" || f.hostAddress == "host.docker.internal" {
+		return raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return raw
+	}
+	host := u.Hostname()
+	if host != "host.docker.internal" {
+		return raw
+	}
+	// Preserve port.
+	if port := u.Port(); port != "" {
+		u.Host = net.JoinHostPort(f.hostAddress, port)
+	} else {
+		u.Host = f.hostAddress
+	}
+	return u.String()
 }
 
 func (f *FileProvider) resolveTcpTarget(target interface{}) (string, int) {

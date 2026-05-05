@@ -2,8 +2,10 @@
 #   cp routes.example.yaml routes.yaml
 #
 # Target formats:
-#   port-only (5174)    — resolves to localhost or host.docker.internal automatically
-#   full URL            — http://192.168.1.50:3000, used as-is
+#   port-only (5174)            — resolves to localhost or host.docker.internal automatically
+#   full URL                    — http://192.168.1.50:3000, used as-is
+#   host.docker.internal:PORT   — Windows-side service in WSL setups (rewritten to WSL→Windows gateway)
+#   host.wsl.internal:PORT      — WSL2 Linux-side service (resolved via /etc/hosts, no rewrite)
 
 passthrough: []
   # - domain: example-local.com

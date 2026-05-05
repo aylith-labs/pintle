@@ -5,9 +5,14 @@ services:
     ports:
       - '443:9443'
       - '80:9080'
-      - '6379:6379'
-      - '5432:5432'
-      - '3306:3306'
+      - '15432:5432'
+      - '16379:6379'
+      - '13306:3306'
+    # pid: host lets the container read the host's /proc/1/net/route, which
+    # exposes the host's real default gateway. Without this, /proc/net/route
+    # is virtualized to the container's own network namespace and only shows
+    # the bridge gateway (e.g. 172.20.0.1), which is not the WSL→Windows path.
+    pid: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./certs:/certs:ro
@@ -16,12 +21,19 @@ services:
       - traefik
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+      # WSL-only sentinel: bypasses the host.docker.internal → WSL gateway
+      # rewrite in hostdetect, so targets that need the WSL2 Linux host (not
+      # the Windows side) can opt in via `target: http://host.wsl.internal:PORT`.
+      - 'host.wsl.internal:host-gateway'
     environment:
       - BASE_DOMAIN=${BASE_DOMAIN:-lvh.me}
       - DOCKER_NETWORK=${DOCKER_NETWORK:-traefik}
       - CERTS_DIR=/certs
       - ROUTES_FILE=/routes.yaml
       - VITE_DEV_URL=${VITE_DEV_URL:-}
+      # Explicit override for the host address used in static routes.
+      # Leave empty to auto-detect from /host-route.
+      - HOST_GATEWAY_IP=${HOST_GATEWAY_IP:-}
 
   ui:
     image: oven/bun:latest
