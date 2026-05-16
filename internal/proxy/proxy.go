@@ -73,10 +73,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Set("X-Forwarded-For", r.RemoteAddr)
 			req.Header.Set("X-Forwarded-Proto", "https")
 			req.Header.Set("X-Forwarded-Host", hostname)
-			// Don't override Host for WebSocket upgrades — upstream may validate it
-			if !isUpgrade {
-				req.Host = targetURL.Host
-			}
+			// Preserve the client's Host header so backends that build URLs
+			// from r.Host (e.g. Zitadel's Console environment.json) see the
+			// canonical hostname, not the container's bind address. The
+			// reverse-proxy transport routes by req.URL.Host (set above) and
+			// sends the Host header from req.Host — leaving req.Host nil/r.Host
+			// makes httputil.ReverseProxy use the original incoming Host.
+			_ = isUpgrade // intentionally not overriding for WS either
 		},
 		Transport: h.transport,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {

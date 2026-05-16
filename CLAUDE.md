@@ -42,6 +42,14 @@ labels:
   - caddy.handle_path=/api/*               # path prefix + strip
 ```
 
+## Host header behavior
+The client's `Host` header is **preserved** when forwarding to the upstream —
+matching Traefik's `passHostHeader=true` default and Caddy's `reverse_proxy`
+default. Backends that build URLs from `r.Host` (e.g. Zitadel's Console
+`environment.json` `api` field) rely on seeing the canonical client hostname,
+not the upstream's bind address. Regression covered by
+`internal/proxy/proxy_host_test.go`.
+
 ## Commands
 - **Production**: `docker compose up -d --build` (single container, embedded UI, restart: unless-stopped)
 - **Dev with HMR**: `make docker-dev` (adds Vite HMR container via compose profile)
