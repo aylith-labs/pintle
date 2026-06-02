@@ -17,9 +17,9 @@ import (
 )
 
 type DockerProvider struct {
-	networkName string
-	mu          sync.RWMutex
-	traefikIP   string
+	networkName     string
+	mu              sync.RWMutex
+	traefikIP       string
 	dockerRoutes    []provider.Route
 	dockerTcpRoutes []provider.TcpRoute
 }
@@ -86,6 +86,19 @@ func (d *DockerProvider) resolveContainerRoute(info types.Container, parsed *par
 			Path:          parsed.Path,
 			Target:        target,
 			StripPath:     parsed.Strip,
+			H2C:           parsed.H2C,
+			Source:        source,
+			ContainerName: name,
+		})
+	}
+	for _, pattern := range parsed.HostPatterns {
+		routes = append(routes, provider.Route{
+			Hostname:      pattern,
+			IsRegexp:      true,
+			Path:          parsed.Path,
+			Target:        target,
+			StripPath:     parsed.Strip,
+			H2C:           parsed.H2C,
 			Source:        source,
 			ContainerName: name,
 		})

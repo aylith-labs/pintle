@@ -105,3 +105,90 @@ func TestGetAllRoutes(t *testing.T) {
 		t.Errorf("len = %d, want 2", len(all))
 	}
 }
+
+func TestResolveHostRegexp(t *testing.T) {
+	r := New()
+	r.Update([]provider.Route{
+		{Hostname: "^[^.]+[.]internal[.]example$", IsRegexp: true, Path: "/", Target: "http://app-backend:80", Source: "traefik"},
+	})
+
+	tests := []struct {
+		host  string
+		match bool
+	}{
+		{"hotels.internal.example", true},
+		{"us2.internal.example", true},
+		{"dashboard.internal.example", true},
+		{"a.b.internal.example", false}, // two labels — regex requires a single label
+		{"hotels.example.com", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.host, func(t *testing.T) {
+			result := r.Resolve(tt.host, "/calendar")
+			if tt.match && result == nil {
+				t.Fatalf("expected match for %q", tt.host)
+			}
+			if !tt.match && result != nil {
+				t.Fatalf("expected no match for %q, got %q", tt.host, result.Target)
+			}
+			if tt.match && result.Target != "http://app-backend:80" {
+				t.Errorf("target = %q", result.Target)
+			}
+		})
+	}
+}
+
+func TestExactHostBeatsRegexp(t *testing.T) {
+	r := New()
+	r.Update([]provider.Route{
+		{Hostname: "^[^.]+[.]internal[.]example$", IsRegexp: true, Path: "/", Target: "http://app-backend:80", Source: "traefik"},
+		{Hostname: "dashboard.internal.example", Path: "/", Target: "http://dashboard:5770", Source: "traefik"},
+	})
+
+	result := r.Resolve("dashboard.internal.example", "/")
+	if result == nil {
+		t.Fatal("expected match")
+	}
+	if result.Target != "http://dashboard:5770" {
+		t.Errorf("target = %q, want exact-host route to win over regex", result.Target)
+	}
+
+	// A host only the regex matches still resolves to the regex target.
+	result = r.Resolve("hotels.internal.example", "/")
+	if result == nil || result.Target != "http://app-backend:80" {
+		t.Errorf("regex fallback failed: %+v", result)
+	}
+}
+
+func TestHasHost(t *testing.T) {
+	r := New()
+	r.Update([]provider.Route{
+		{Hostname: "dashboard.internal.example", Path: "/", Target: "http://dashboard:5770", Source: "traefik"},
+		{Hostname: "^[^.]+[.]internal[.]example$", IsRegexp: true, Path: "/", Target: "http://app-backend:80", Source: "traefik"},
+	})
+
+	cases := map[string]bool{
+		"dashboard.internal.example": true, // exact
+		"hotels.internal.example":    true, // regex
+		"a.b.internal.example":       false,
+		"unknown.lvh.me":             false,
+	}
+	for host, want := range cases {
+		if got := r.HasHost(host); got != want {
+			t.Errorf("HasHost(%q) = %v, want %v", host, got, want)
+		}
+	}
+}
+
+func TestUpdateInvalidRegexpSkipped(t *testing.T) {
+	r := New()
+	// An invalid pattern must not panic or poison the table; valid routes survive.
+	r.Update([]provider.Route{
+		{Hostname: "(unclosed", IsRegexp: true, Path: "/", Target: "http://bad:1", Source: "traefik"},
+		{Hostname: "good.lvh.me", Path: "/", Target: "http://good:2", Source: "static"},
+	})
+
+	if result := r.Resolve("good.lvh.me", "/"); result == nil || result.Target != "http://good:2" {
+		t.Errorf("valid route lost after invalid regex: %+v", result)
+	}
+}

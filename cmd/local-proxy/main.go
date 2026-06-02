@@ -189,6 +189,7 @@ func main() {
 				Port: 9444,
 			},
 			ForwardTargets: buildSNITargets(passthroughDomains, dockerProv, cfg),
+			HasLocalRoute:  rtr.HasHost,
 		}
 		go sniRouter.Start(ctx)
 	}

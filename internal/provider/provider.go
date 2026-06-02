@@ -4,10 +4,12 @@ import "context"
 
 type Route struct {
 	Hostname      string `json:"hostname"`
+	IsRegexp      bool   `json:"isRegexp,omitempty"` // Hostname is a regular expression (Traefik HostRegexp)
 	Path          string `json:"path"`
 	Target        string `json:"target"`
 	StripPath     bool   `json:"stripPath"`
-	Source        string `json:"source"` // "docker", "static", "traefik", "caddy"
+	H2C           bool   `json:"h2c,omitempty"` // upstream speaks HTTP/2 cleartext (gRPC)
+	Source        string `json:"source"`        // "docker", "static", "traefik", "caddy"
 	ContainerName string `json:"containerName,omitempty"`
 }
 

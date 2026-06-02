@@ -96,6 +96,9 @@ type SNIRouter struct {
 	Port           int
 	LocalTarget    *net.TCPAddr
 	ForwardTargets []SNIForwardTarget
+	// HasLocalRoute reports whether an explicit local route exists for a hostname.
+	// When set, explicit routes win over passthrough domains.
+	HasLocalRoute func(hostname string) bool
 }
 
 func pipeToTarget(client net.Conn, initialData []byte, addr *net.TCPAddr) {
@@ -168,6 +171,14 @@ func (s *SNIRouter) handleConnection(client net.Conn) {
 
 	// Find forward target
 	if sni != "" {
+		// Explicit local routes take precedence over passthrough domains, so a
+		// host with its own route is served locally even when its parent domain
+		// is otherwise passed through to another proxy.
+		if s.HasLocalRoute != nil && s.HasLocalRoute(sni) {
+			pipeToTarget(client, data, s.LocalTarget)
+			return
+		}
+
 		for _, ft := range s.ForwardTargets {
 			if ft.Match(sni) {
 				target := ft.Resolve()

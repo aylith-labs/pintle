@@ -7,10 +7,12 @@ import (
 )
 
 type parsedLabels struct {
-	Hosts []string
-	Port  int
-	Path  string
-	Strip bool
+	Hosts        []string
+	HostPatterns []string // regular-expression hosts (Traefik HostRegexp)
+	Port         int
+	Path         string
+	Strip        bool
+	H2C          bool // upstream speaks HTTP/2 cleartext (gRPC)
 }
 
 // parseProxyLabels parses local-proxy.* labels.
@@ -46,11 +48,13 @@ func parseProxyLabels(labels map[string]string) *parsedLabels {
 }
 
 var (
-	traefikRouterRuleRe  = regexp.MustCompile(`^traefik\.http\.routers\..+\.rule$`)
-	traefikServicePortRe = regexp.MustCompile(`^traefik\.http\.services\..+\.loadbalancer\.server\.port$`)
-	traefikStripPrefixRe = regexp.MustCompile(`^traefik\.http\.middlewares\..+\.stripprefix\.prefixes$`)
-	hostRe               = regexp.MustCompile(`Host\(` + "`" + `([^` + "`" + `]+)` + "`" + `\)`)
-	pathPrefixRe         = regexp.MustCompile(`PathPrefix\(` + "`" + `([^` + "`" + `]+)` + "`" + `\)`)
+	traefikRouterRuleRe    = regexp.MustCompile(`^traefik\.http\.routers\..+\.rule$`)
+	traefikServicePortRe   = regexp.MustCompile(`^traefik\.http\.services\..+\.loadbalancer\.server\.port$`)
+	traefikServiceSchemeRe = regexp.MustCompile(`^traefik\.http\.services\..+\.loadbalancer\.server\.scheme$`)
+	traefikStripPrefixRe   = regexp.MustCompile(`^traefik\.http\.middlewares\..+\.stripprefix\.prefixes$`)
+	hostRe                 = regexp.MustCompile(`Host\(` + "`" + `([^` + "`" + `]+)` + "`" + `\)`)
+	hostRegexpRe           = regexp.MustCompile(`HostRegexp\(` + "`" + `([^` + "`" + `]+)` + "`" + `\)`)
+	pathPrefixRe           = regexp.MustCompile(`PathPrefix\(` + "`" + `([^` + "`" + `]+)` + "`" + `\)`)
 )
 
 // parseTraefikLabels parses traefik.http.* labels.
@@ -71,14 +75,17 @@ func parseTraefikLabels(labels map[string]string) *parsedLabels {
 		return nil
 	}
 
-	// Parse Host(`...`)
-	hostMatches := hostRe.FindAllStringSubmatch(ruleValue, -1)
-	if len(hostMatches) == 0 {
-		return nil
-	}
+	// Parse Host(`...`) and HostRegexp(`...`)
 	var hosts []string
-	for _, m := range hostMatches {
+	for _, m := range hostRe.FindAllStringSubmatch(ruleValue, -1) {
 		hosts = append(hosts, m[1])
+	}
+	var hostPatterns []string
+	for _, m := range hostRegexpRe.FindAllStringSubmatch(ruleValue, -1) {
+		hostPatterns = append(hostPatterns, m[1])
+	}
+	if len(hosts) == 0 && len(hostPatterns) == 0 {
+		return nil
 	}
 
 	// Parse optional PathPrefix(`...`)
@@ -87,12 +94,15 @@ func parseTraefikLabels(labels map[string]string) *parsedLabels {
 		path = pathMatch[1]
 	}
 
-	// Find port
+	// Find port and upstream scheme
 	port := 0
+	h2c := false
 	for key, value := range labels {
 		if traefikServicePortRe.MatchString(key) {
 			port, _ = strconv.Atoi(value)
-			break
+		}
+		if traefikServiceSchemeRe.MatchString(key) && value == "h2c" {
+			h2c = true
 		}
 	}
 
@@ -106,10 +116,12 @@ func parseTraefikLabels(labels map[string]string) *parsedLabels {
 	}
 
 	return &parsedLabels{
-		Hosts: hosts,
-		Port:  port,
-		Path:  path,
-		Strip: strip,
+		Hosts:        hosts,
+		HostPatterns: hostPatterns,
+		Port:         port,
+		Path:         path,
+		Strip:        strip,
+		H2C:          h2c,
 	}
 }
 

@@ -74,9 +74,9 @@ func TestParseProxyLabels(t *testing.T) {
 func TestParseTraefikLabels(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		labels := map[string]string{
-			"traefik.enable":                                       "true",
-			"traefik.http.routers.app.rule":                        "Host(`app.lvh.me`)",
-			"traefik.http.services.app.loadbalancer.server.port":   "5173",
+			"traefik.enable":                                     "true",
+			"traefik.http.routers.app.rule":                      "Host(`app.lvh.me`)",
+			"traefik.http.services.app.loadbalancer.server.port": "5173",
 		}
 		result := parseTraefikLabels(labels)
 		if result == nil {
@@ -95,10 +95,10 @@ func TestParseTraefikLabels(t *testing.T) {
 
 	t.Run("with path and strip", func(t *testing.T) {
 		labels := map[string]string{
-			"traefik.enable":                                           "true",
-			"traefik.http.routers.app.rule":                            "Host(`app.lvh.me`) && PathPrefix(`/api`)",
-			"traefik.http.services.app.loadbalancer.server.port":       "5173",
-			"traefik.http.middlewares.app-strip.stripprefix.prefixes":   "/api",
+			"traefik.enable":                                          "true",
+			"traefik.http.routers.app.rule":                           "Host(`app.lvh.me`) && PathPrefix(`/api`)",
+			"traefik.http.services.app.loadbalancer.server.port":      "5173",
+			"traefik.http.middlewares.app-strip.stripprefix.prefixes": "/api",
 		}
 		result := parseTraefikLabels(labels)
 		if result == nil {
@@ -174,10 +174,10 @@ func TestParseCaddyLabels(t *testing.T) {
 func TestParseTraefikTcpLabels(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		labels := map[string]string{
-			"traefik.enable":                                         "true",
-			"traefik.tcp.routers.redis.rule":                         "HostSNI(`redis.lvh.me`)",
-			"traefik.tcp.routers.redis.entrypoints":                  "redis",
-			"traefik.tcp.services.redis.loadbalancer.server.port":    "6379",
+			"traefik.enable":                                      "true",
+			"traefik.tcp.routers.redis.rule":                      "HostSNI(`redis.lvh.me`)",
+			"traefik.tcp.routers.redis.entrypoints":               "redis",
+			"traefik.tcp.services.redis.loadbalancer.server.port": "6379",
 		}
 		result := parseTraefikTcpLabels(labels)
 		if result == nil {
@@ -201,6 +201,78 @@ func TestParseTraefikTcpLabels(t *testing.T) {
 		result := parseTraefikTcpLabels(labels)
 		if result != nil {
 			t.Error("expected nil")
+		}
+	})
+}
+
+func TestParseTraefikLabelsHostRegexp(t *testing.T) {
+	t.Run("host regexp only", func(t *testing.T) {
+		labels := map[string]string{
+			"traefik.enable":                                     "true",
+			"traefik.http.routers.app.rule":                      "HostRegexp(`^[^.]+[.]internal[.]example$`)",
+			"traefik.http.services.app.loadbalancer.server.port": "80",
+		}
+		result := parseTraefikLabels(labels)
+		if result == nil {
+			t.Fatal("expected result")
+		}
+		if len(result.Hosts) != 0 {
+			t.Errorf("hosts = %v, want empty", result.Hosts)
+		}
+		if len(result.HostPatterns) != 1 || result.HostPatterns[0] != "^[^.]+[.]internal[.]example$" {
+			t.Errorf("hostPatterns = %v", result.HostPatterns)
+		}
+		if result.Port != 80 {
+			t.Errorf("port = %d, want 80", result.Port)
+		}
+	})
+
+	t.Run("host and host regexp combined", func(t *testing.T) {
+		labels := map[string]string{
+			"traefik.enable":                                   "true",
+			"traefik.http.routers.x.rule":                      "Host(`a.lvh.me`) || HostRegexp(`^b[.]lvh[.]me$`)",
+			"traefik.http.services.x.loadbalancer.server.port": "5000",
+		}
+		result := parseTraefikLabels(labels)
+		if result == nil {
+			t.Fatal("expected result")
+		}
+		if len(result.Hosts) != 1 || result.Hosts[0] != "a.lvh.me" {
+			t.Errorf("hosts = %v, want [a.lvh.me]", result.Hosts)
+		}
+		if len(result.HostPatterns) != 1 || result.HostPatterns[0] != "^b[.]lvh[.]me$" {
+			t.Errorf("hostPatterns = %v", result.HostPatterns)
+		}
+	})
+}
+
+func TestParseTraefikLabelsH2C(t *testing.T) {
+	labels := map[string]string{
+		"traefik.enable":                                        "true",
+		"traefik.http.routers.grpc.rule":                        "Host(`grpc.lvh.me`)",
+		"traefik.http.services.grpc.loadbalancer.server.port":   "9090",
+		"traefik.http.services.grpc.loadbalancer.server.scheme": "h2c",
+	}
+	result := parseTraefikLabels(labels)
+	if result == nil {
+		t.Fatal("expected result")
+	}
+	if !result.H2C {
+		t.Error("H2C = false, want true")
+	}
+
+	t.Run("default scheme is not h2c", func(t *testing.T) {
+		plain := map[string]string{
+			"traefik.enable":                                     "true",
+			"traefik.http.routers.web.rule":                      "Host(`web.lvh.me`)",
+			"traefik.http.services.web.loadbalancer.server.port": "8080",
+		}
+		result := parseTraefikLabels(plain)
+		if result == nil {
+			t.Fatal("expected result")
+		}
+		if result.H2C {
+			t.Error("H2C = true, want false")
 		}
 	})
 }

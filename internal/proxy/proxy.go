@@ -1,11 +1,16 @@
 package proxy
 
 import (
+	"context"
+	"crypto/tls"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
+
+	"golang.org/x/net/http2"
 
 	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
 	"github.com/steven-pribilinskiy/local-proxy/internal/router"
@@ -13,9 +18,10 @@ import (
 )
 
 type Handler struct {
-	router    *router.Router
-	stats     *stats.Collector
-	transport http.RoundTripper
+	router       *router.Router
+	stats        *stats.Collector
+	transport    http.RoundTripper
+	h2cTransport http.RoundTripper
 }
 
 func NewHandler(r *router.Router, s *stats.Collector) *Handler {
@@ -27,6 +33,16 @@ func NewHandler(r *router.Router, s *stats.Collector) *Handler {
 			MaxIdleConnsPerHost: 10,
 			IdleConnTimeout:     90 * time.Second,
 			DisableCompression:  true, // pass compressed responses through
+		},
+		// h2c (HTTP/2 cleartext) transport for gRPC upstreams. AllowHTTP lets
+		// http:// URLs use HTTP/2, and the dialer returns a plain TCP conn so no
+		// TLS is attempted despite the DialTLSContext name.
+		h2cTransport: &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				var dialer net.Dialer
+				return dialer.DialContext(ctx, network, addr)
+			},
 		},
 	}
 }
@@ -59,6 +75,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 
+	transport := h.transport
+	if result.Route.H2C {
+		transport = h.h2cTransport
+	}
+
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = targetURL.Scheme
@@ -78,7 +99,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// req.URL.Host (set above) and sends req.Host as the Host header;
 			// leaving it as the original incoming Host preserves it.
 		},
-		Transport: h.transport,
+		Transport: transport,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			durationMs := float64(time.Since(start).Microseconds()) / 1000.0
 			logger.Error("Proxy error: "+hostname+path+" -> "+result.Target, err)
