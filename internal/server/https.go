@@ -15,6 +15,10 @@ import (
 func StartHTTPS(ctx context.Context, port int, hostname string, tlsManager *tlsmgr.Manager, handler http.Handler) error {
 	tlsConfig := &tls.Config{
 		GetCertificate: tlsManager.GetCertificate,
+		// Offer h2 via ALPN. net/http only serves HTTP/2 on Serve() when the
+		// TLS config advertises it. WebSocket upgrades still arrive on separate
+		// HTTP/1.1 connections (no extended CONNECT), so WS proxying is unaffected.
+		NextProtos: []string{"h2", "http/1.1"},
 	}
 
 	addr := fmt.Sprintf("%s:%d", hostname, port)
