@@ -59,9 +59,9 @@ export function App() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
+		<div className="h-screen flex flex-col overflow-hidden bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
 			{/* Header */}
-			<header className="border-b border-gray-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 glass sticky top-0 z-50">
+			<header className="shrink-0 border-b border-gray-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 glass sticky top-0 z-50">
 				<div className="px-4 py-2 flex items-center justify-between">
 					<div className="flex items-center gap-4">
 						<div className="flex items-center gap-2.5">
@@ -104,7 +104,7 @@ export function App() {
 			</header>
 
 			{/* Content */}
-			<main className="px-4 pt-4 pb-3 space-y-3">
+			<main className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3">
 				{page === 'dashboard' && <DashboardPage topology={topology} stats={stats} scale={fontScale} />}
 				{page === 'activity' && <ActivityPage topology={topology} stats={stats} />}
 				{page === 'architecture' && <ArchitecturePage mode={topology?.mode ?? null} />}

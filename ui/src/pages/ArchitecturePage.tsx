@@ -46,12 +46,14 @@ function ModeToggle({
 	mode,
 	onChange,
 	detectedMode,
-}: { mode: RuntimeMode; onChange: (m: RuntimeMode) => void; detectedMode: RuntimeMode | null }) {
+}: {
+	mode: RuntimeMode;
+	onChange: (m: RuntimeMode) => void;
+	detectedMode: RuntimeMode | null;
+}) {
 	return (
 		<div className="flex items-center gap-2">
-			<span className="text-[0.625rem] text-gray-400 dark:text-zinc-500 mr-1">
-				Deployment mode:
-			</span>
+			<span className="text-[0.625rem] text-gray-400 dark:text-zinc-500 mr-1">Deployment mode:</span>
 			<div className="flex rounded-md border border-gray-200/60 dark:border-zinc-700 overflow-hidden">
 				<button
 					type="button"
@@ -107,20 +109,24 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			<Section title="Overview">
 				<p>
 					local-proxy is a <Abbr>HTTPS</Abbr> reverse proxy for local development. It routes <code>*.lvh.me</code>{' '}
-					domains through a Go-based server and passes <code>*.example-local.com</code> traffic through to Traefik
-					when available. All traffic flows through a single entry point on port 443 using <Abbr>SNI</Abbr>-based
-					routing.
+					domains through a Go-based server and passes <code>*.example-local.com</code> traffic through to Traefik when
+					available. All traffic flows through a single entry point on port 443 using <Abbr>SNI</Abbr>-based routing.
 				</p>
 			</Section>
 
 			{/* Traffic Flow */}
 			<Section title="How Traffic Flows">
-				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-2">
+				<div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm rounded-lg p-4 space-y-2">
 					<div className="text-[0.625rem] font-medium uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
 						<Abbr>HTTPS</Abbr> Traffic (port 443)
 					</div>
 					<div className="flex items-center gap-2">
-						<DiagramRow left="Browser :443" arrow={isDocker ? 'Docker port map' : 'iptables NAT'} right="SNI Router :9443" note={isDocker ? '443→9443' : 'port redirect'} />
+						<DiagramRow
+							left="Browser :443"
+							arrow={isDocker ? 'Docker port map' : 'iptables NAT'}
+							right="SNI Router :9443"
+							note={isDocker ? '443→9443' : 'port redirect'}
+						/>
 						<ModeBadge mode={mode} />
 					</div>
 					<DiagramRow left="SNI Router" arrow="*.lvh.me" right="HTTPS Server :9444" note="local TLS" />
@@ -131,20 +137,28 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 						<Abbr>HTTP</Abbr> Traffic (port 80)
 					</div>
 					<div className="flex items-center gap-2">
-						<DiagramRow left="Browser :80" arrow={isDocker ? 'Docker port map' : 'iptables NAT'} right="Redirect :9080" note={isDocker ? '80→9080, 301 to HTTPS' : '301 to HTTPS'} />
+						<DiagramRow
+							left="Browser :80"
+							arrow={isDocker ? 'Docker port map' : 'iptables NAT'}
+							right="Redirect :9080"
+							note={isDocker ? '80→9080, 301 to HTTPS' : '301 to HTTPS'}
+						/>
 						<ModeBadge mode={mode} />
 					</div>
 
 					<div className="mt-3">
 						{isDocker ? (
 							<p className="text-[0.625rem] text-gray-400 dark:text-zinc-500">
-								<strong>Windows <Abbr>WSL</Abbr> note:</strong> You may also need{' '}
-								<code>netsh interface portproxy</code> to forward from Windows localhost to the <Abbr>WSL</Abbr> IP.
+								<strong>
+									Windows <Abbr>WSL</Abbr> note:
+								</strong>{' '}
+								You may also need <code>netsh interface portproxy</code> to forward from Windows localhost to the{' '}
+								<Abbr>WSL</Abbr> IP.
 							</p>
 						) : (
 							<p className="text-[0.625rem] text-gray-400 dark:text-zinc-500">
-								Port redirection is managed by <code>scripts/start.sh</code> (iptables on Linux, pfctl on macOS).
-								Run <code>scripts/stop.sh</code> to remove the rules.
+								Port redirection is managed by <code>scripts/start.sh</code> (iptables on Linux, pfctl on macOS). Run{' '}
+								<code>scripts/stop.sh</code> to remove the rules.
 							</p>
 						)}
 					</div>
@@ -161,15 +175,16 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				</p>
 				<p>
 					This is called <strong>TCP passthrough</strong> — the router never decrypts traffic. This allows Traefik to
-					keep using its own certificates while local-proxy uses <Abbr>mkcert</Abbr> certificates, all on the same port 443.
+					keep using its own certificates while local-proxy uses <Abbr>mkcert</Abbr> certificates, all on the same port
+					443.
 				</p>
 			</Section>
 
 			{/* TLS Certificates */}
 			<Section title="TLS Certificates">
 				<p>
-					The <Abbr>HTTPS</Abbr> server uses <Abbr>mkcert</Abbr> to generate locally-trusted wildcard certificates.
-					Two certificate sets are configured via <Abbr>SNI</Abbr>:
+					The <Abbr>HTTPS</Abbr> server uses <Abbr>mkcert</Abbr> to generate locally-trusted wildcard certificates. Two
+					certificate sets are configured via <Abbr>SNI</Abbr>:
 				</p>
 				<ul className="list-disc pl-4 space-y-1">
 					<li>
@@ -187,9 +202,9 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 
 			{/* Docker Discovery */}
 			<Section title="Docker Service Discovery">
-				<p>The proxy discovers containers on the shared Docker network using two label formats:</p>
+				<p>The proxy discovers containers on the shared Docker network using three label formats:</p>
 
-				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
+				<div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm rounded-lg p-4 space-y-3 mt-2">
 					<div>
 						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-sky-500 mb-1">
 							Native labels (local-proxy.*)
@@ -208,15 +223,28 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 						</div>
 						<code className="text-[0.6875rem] block space-y-0.5">
 							<div>traefik.enable: "true"</div>
-							<div>traefik.http.routers.app.rule: "Host(`app.example-local.com`)"</div>
+							<div>traefik.http.routers.app.rule: "Host(`app.lvh.me`)"</div>
 							<div>traefik.http.services.app.loadbalancer.server.port: "3000"</div>
+						</code>
+					</div>
+
+					<div>
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-emerald-500 mb-1">
+							Caddy labels (caddy-docker-proxy)
+						</div>
+						<code className="text-[0.6875rem] block space-y-0.5">
+							<div>caddy: app.lvh.me</div>
+							<div>{'caddy.reverse_proxy: "{{upstreams 3000}}"'}</div>
+							<div>caddy.handle_path: /api/* (optional)</div>
 						</code>
 					</div>
 				</div>
 
 				<p>
-					Native <code>local-proxy.*</code> labels take precedence. If a container has both, only the native route is
-					registered.
+					Priority is <code>local-proxy.*</code> &gt; <code>traefik.*</code> &gt; <code>caddy*</code>. If a container
+					has more than one format, only the highest-priority one is registered. Traefik rules also parse{' '}
+					<code>HostRegexp(...)</code> and the <code>scheme: h2c</code> service label for HTTP/2-cleartext (gRPC)
+					upstreams.
 				</p>
 			</Section>
 
@@ -228,7 +256,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 					same domain to avoid <Abbr>CORS</Abbr> — you can use path-based routing.
 				</p>
 
-				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
+				<div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm rounded-lg p-4 space-y-3 mt-2">
 					<div>
 						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-sky-500 mb-1">
 							Example: Frontend + API on same host
@@ -248,8 +276,8 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				</div>
 
 				<p>
-					<code>local-proxy.path</code> matches requests by path prefix. <code>local-proxy.strip</code> removes the prefix before
-					forwarding — so <code>/api/users</code> arrives at the backend as <code>/users</code>.
+					<code>local-proxy.path</code> matches requests by path prefix. <code>local-proxy.strip</code> removes the
+					prefix before forwarding — so <code>/api/users</code> arrives at the backend as <code>/users</code>.
 				</p>
 				<p>
 					In most cases, prefer separate subdomains (<code>app-api.lvh.me</code>) over path routing. Use path routing
@@ -271,11 +299,54 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				</p>
 			</Section>
 
+			{/* TCP Services */}
+			<Section title="TCP Services (databases)">
+				<p>
+					Beyond <Abbr>HTTP</Abbr>, local-proxy fronts raw <Abbr>TCP</Abbr> database connections (PostgreSQL, Redis,
+					MySQL) over <Abbr>TLS</Abbr>. It listens on the service port, reads the <Abbr>SNI</Abbr> hostname from the{' '}
+					<Abbr>TLS</Abbr> ClientHello, terminates <Abbr>TLS</Abbr> with the matching <Abbr>mkcert</Abbr> certificate,
+					and pipes plaintext to the upstream container.
+				</p>
+
+				<div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm rounded-lg p-4 space-y-3 mt-2">
+					<div>
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-sky-500 mb-1">
+							Static (routes.yaml)
+						</div>
+						<code className="text-[0.6875rem] block space-y-0.5">
+							<div>tcp:</div>
+							<div>&nbsp;&nbsp;- host: db.lvh.me</div>
+							<div>&nbsp;&nbsp;&nbsp;&nbsp;target: 5432 # upstream port</div>
+							<div>&nbsp;&nbsp;&nbsp;&nbsp;listen: 5432 # port to listen on</div>
+						</code>
+					</div>
+
+					<div>
+						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-orange-500 mb-1">
+							Docker (traefik.tcp.*)
+						</div>
+						<code className="text-[0.6875rem] block space-y-0.5">
+							<div>traefik.enable: "true"</div>
+							<div>traefik.tcp.routers.db.rule: "HostSNI(`db.lvh.me`)"</div>
+							<div>traefik.tcp.routers.db.entrypoints: postgres</div>
+							<div>traefik.tcp.services.db.loadbalancer.server.port: "5432"</div>
+						</code>
+					</div>
+				</div>
+
+				<p>
+					Entrypoint names map to default ports: <code>redis</code> → 6379, <code>postgres</code> → 5432,{' '}
+					<code>mysql</code> → 3306. Connect with a TLS-capable client using the <Abbr>SNI</Abbr> hostname, e.g.{' '}
+					<code>psql "host=db.lvh.me sslmode=require"</code>. In Docker mode these ports are mapped to high host ports
+					(15432, 16379, 13306) to avoid colliding with databases already running on the host.
+				</p>
+			</Section>
+
 			{/* Comparison */}
 			<Section title="Traefik vs local-proxy">
-				<div className="rounded-lg border border-gray-200/60 dark:border-zinc-800 overflow-hidden mt-2">
+				<div className="rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900 shadow-sm mt-2">
 					<table className="w-full text-xs">
-						<thead className="bg-gray-50 dark:bg-zinc-900">
+						<thead className="bg-gray-100 dark:bg-zinc-800/60">
 							<tr>
 								<th className="text-left px-4 py-2.5 font-semibold text-gray-500 dark:text-zinc-400 w-1/3" />
 								<th className="text-left px-4 py-2.5 font-semibold text-orange-500">Traefik</th>
@@ -366,16 +437,16 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 					issues. Go is uniquely suited for reverse proxies:
 				</p>
 
-				<div className="bg-gray-50 dark:bg-zinc-900/60 border border-gray-200/60 dark:border-zinc-800 rounded-lg p-4 space-y-3 mt-2">
+				<div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm rounded-lg p-4 space-y-3 mt-2">
 					<div>
 						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-emerald-500 mb-1">
 							Concurrency
 						</div>
 						<p>
-							Go spawns a <Abbr>goroutine</Abbr> per connection (~2 KB stack). Node/Bun/Deno use a single-threaded event loop —
-							fine for <Abbr>I/O</Abbr>, but a reverse proxy manages many concurrent <Abbr>TCP</Abbr> connections with
-							bidirectional data flow. <Abbr>SNI</Abbr> routing, WebSocket proxying, and <Abbr>TCP</Abbr> service routing
-							all do raw socket piping that maps naturally to <Abbr>goroutine</Abbr>s.
+							Go spawns a <Abbr>goroutine</Abbr> per connection (~2 KB stack). Node/Bun/Deno use a single-threaded event
+							loop — fine for <Abbr>I/O</Abbr>, but a reverse proxy manages many concurrent <Abbr>TCP</Abbr> connections
+							with bidirectional data flow. <Abbr>SNI</Abbr> routing, WebSocket proxying, and <Abbr>TCP</Abbr> service
+							routing all do raw socket piping that maps naturally to <Abbr>goroutine</Abbr>s.
 						</p>
 					</div>
 
@@ -406,9 +477,9 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 							Standard library
 						</div>
 						<p>
-							Go's stdlib includes a production-grade reverse proxy (<code>httputil.ReverseProxy</code>), <Abbr>TLS</Abbr>{' '}
-							server with dynamic certificate selection, and raw <Abbr>TCP</Abbr> listeners. In Node/Bun these require
-							third-party packages or manual implementation.
+							Go's stdlib includes a production-grade reverse proxy (<code>httputil.ReverseProxy</code>),{' '}
+							<Abbr>TLS</Abbr> server with dynamic certificate selection, and raw <Abbr>TCP</Abbr> listeners. In
+							Node/Bun these require third-party packages or manual implementation.
 						</p>
 					</div>
 
@@ -423,9 +494,9 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 					</div>
 				</div>
 
-				<div className="rounded-lg border border-gray-200/60 dark:border-zinc-800 overflow-hidden mt-4">
+				<div className="rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900 shadow-sm mt-4">
 					<table className="w-full text-xs">
-						<thead className="bg-gray-50 dark:bg-zinc-900">
+						<thead className="bg-gray-100 dark:bg-zinc-800/60">
 							<tr>
 								<th className="text-left px-4 py-2.5 font-semibold text-gray-500 dark:text-zinc-400 w-1/3" />
 								<th className="text-left px-4 py-2.5 font-semibold text-indigo-500">Go</th>
@@ -460,12 +531,16 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Reverse proxy</td>
-								<td className="px-4 py-2">stdlib <code>httputil.ReverseProxy</code></td>
+								<td className="px-4 py-2">
+									stdlib <code>httputil.ReverseProxy</code>
+								</td>
 								<td className="px-4 py-2">Manual or third-party</td>
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">TLS / SNI</td>
-								<td className="px-4 py-2">stdlib <code>crypto/tls</code></td>
+								<td className="px-4 py-2">
+									stdlib <code>crypto/tls</code>
+								</td>
 								<td className="px-4 py-2">stdlib (adequate)</td>
 							</tr>
 							<tr>
@@ -475,7 +550,9 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 							</tr>
 							<tr>
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Embed assets</td>
-								<td className="px-4 py-2"><code>{'//go:embed'}</code> (built-in)</td>
+								<td className="px-4 py-2">
+									<code>{'//go:embed'}</code> (built-in)
+								</td>
 								<td className="px-4 py-2">Requires bundler or separate server</td>
 							</tr>
 						</tbody>

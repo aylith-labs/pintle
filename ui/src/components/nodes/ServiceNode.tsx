@@ -1,6 +1,8 @@
 import { ArrowsLeftRight, Cube, File } from '@phosphor-icons/react';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
 import type { RouteStats } from '../../types';
+import { formatCount } from '../grouping';
+import { HEALTH_DOT, healthOf } from '../health';
 
 export type ServiceNodeData = {
 	hostname: string;
@@ -9,11 +11,6 @@ export type ServiceNodeData = {
 	containerName?: string;
 	stats?: RouteStats;
 };
-
-function formatCount(n: number): string {
-	if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-	return String(n);
-}
 
 const sourceConfig = {
 	docker: { color: 'bg-sky-500/10 text-sky-600 dark:text-sky-400', icon: Cube },
@@ -30,13 +27,8 @@ export function ServiceNode({ data }: NodeProps) {
 	const nodeData = data as unknown as ServiceNodeData;
 	const { color: badgeColor, icon: BadgeIcon } = sourceConfig[nodeData.source] ?? sourceConfig.docker;
 	const stats = nodeData.stats;
-	const errorRate = stats ? stats.errorCount / Math.max(stats.totalRequests, 1) : 0;
 	const scale = useScale();
-
-	let healthColor = 'bg-emerald-500';
-	if (!stats) healthColor = 'bg-gray-400 dark:bg-zinc-600';
-	else if (errorRate > 0.5) healthColor = 'bg-red-500';
-	else if (errorRate > 0.1) healthColor = 'bg-amber-500';
+	const healthColor = HEALTH_DOT[healthOf(stats)];
 
 	return (
 		<div
@@ -45,10 +37,7 @@ export function ServiceNode({ data }: NodeProps) {
 		>
 			<Handle type="target" position={Position.Left} className="!bg-indigo-500 !w-2 !h-2 !border-0" />
 			<div className="flex items-center gap-2">
-				<div
-					className={`rounded-full ${healthColor} shrink-0`}
-					style={{ width: 8 * scale, height: 8 * scale }}
-				/>
+				<div className={`rounded-full ${healthColor} shrink-0`} style={{ width: 8 * scale, height: 8 * scale }} />
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center" style={{ gap: 6 * scale }}>
 						<a

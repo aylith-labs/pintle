@@ -1,9 +1,23 @@
 import { type Edge, MarkerType, type Node } from '@xyflow/react';
 import { useMemo } from 'react';
-import type { ProxyStats, ProxyTopology, RouteStats } from '../types';
+import type { ProxyRoute, ProxyStats, ProxyTopology, RouteStats } from '../types';
+import { EMPTY_FILTERS, type FlowFilters, isFilterActive, matchesRoute, type SourceKind } from './filters';
+import { aggregateStats, GROUPING_THRESHOLD, type GroupingMode, groupRoutes } from './grouping';
+import { type HealthState, healthOf } from './health';
 
-const BASE_COL = [0, 220, 460, 720];
+export type SourceCounts = Record<SourceKind, number>;
+export type HealthCounts = Record<HealthState, number>;
+
+const emptySourceCounts = (): SourceCounts => ({ docker: 0, static: 0, traefik: 0 });
+const emptyHealthCounts = (): HealthCounts => ({ healthy: 0, warning: 0, error: 0, idle: 0 });
+
+const BASE_COL = [0, 220, 460, 720, 980];
 const BASE_ROW_HEIGHT = 90;
+
+const EMPTY_SET: ReadonlySet<string> = new Set();
+
+const DIM_NODE = 0.2;
+const DIM_EDGE = 0.12;
 
 function edgeStyle(stats: RouteStats | undefined): { stroke: string; strokeWidth: number } {
 	if (!stats) return { stroke: '#6366f1', strokeWidth: 1.5 };
@@ -18,11 +32,25 @@ function edgeLabel(stats: RouteStats | undefined): string {
 	return `${stats.totalRequests} req`;
 }
 
-export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats | null, scale = 1) {
+export function useFlowLayout(
+	topology: ProxyTopology | null,
+	stats: ProxyStats | null,
+	scale = 1,
+	groupingMode: GroupingMode = 'domain',
+	expandedGroups: ReadonlySet<string> = EMPTY_SET,
+	filters: FlowFilters = EMPTY_FILTERS,
+) {
 	const isDark = document.documentElement.classList.contains('dark');
 
 	return useMemo(() => {
-		if (!topology) return { nodes: [] as Node[], edges: [] as Edge[] };
+		if (!topology)
+			return {
+				nodes: [] as Node[],
+				edges: [] as Edge[],
+				toolbarActive: false,
+				sourceCounts: emptySourceCounts(),
+				healthCounts: emptyHealthCounts(),
+			};
 
 		const COL = BASE_COL.map((c) => c * scale);
 		const ROW_HEIGHT = BASE_ROW_HEIGHT * scale;
@@ -33,6 +61,13 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 		const ROW1 = 60 * scale;
 		const ROW2 = 200 * scale;
 		const labelFontSize = 10 * scale;
+
+		const edgeLabelProps = {
+			labelStyle: { fontSize: labelFontSize, fill: '#94a3b8' },
+			labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
+			labelBgPadding: [4, 6] as [number, number],
+			labelBgBorderRadius: 4,
+		};
 
 		// Col 0: Browser
 		nodes.push({
@@ -109,52 +144,125 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			draggable: true,
 		});
 
-		// Col 3: Service nodes (grouped by unique hostname)
-		const uniqueRoutes = new Map<string, (typeof topology.routes)[0]>();
+		// Service nodes (one per unique hostname), grouped/filtered when there are many
+		const uniqueRoutes = new Map<string, ProxyRoute>();
 		for (const r of topology.routes) {
 			if (!uniqueRoutes.has(r.hostname)) {
 				uniqueRoutes.set(r.hostname, r);
 			}
 		}
 
-		let serviceIdx = 0;
-		for (const [hostname, route] of uniqueRoutes) {
-			const nodeId = `svc-${hostname}`;
-			const hostStat = stats?.hostStats[hostname];
+		function pushServiceNode(route: ProxyRoute, x: number, y: number, sourceNodeId: string, dimmed: boolean) {
+			const nodeId = `svc-${route.hostname}`;
+			const hostStat = stats?.hostStats[route.hostname];
 
 			nodes.push({
 				id: nodeId,
 				type: 'service',
-				position: { x: COL[3], y: 10 * scale + serviceIdx * ROW_HEIGHT },
+				position: { x, y },
 				data: {
-					hostname,
+					hostname: route.hostname,
 					target: route.target,
 					source: route.source,
 					containerName: route.containerName,
 					stats: hostStat,
 				},
 				draggable: true,
+				style: dimmed ? { opacity: DIM_NODE } : undefined,
 			});
 
-			// Edge from HTTPS Server to service
-			const edgeKey = `${hostname}->${route.target}`;
+			const edgeKey = `${route.hostname}->${route.target}`;
 			const eStat = stats?.edgeStats[edgeKey];
+			const baseStyle = edgeStyle(eStat);
 
 			edges.push({
-				id: `e-bun-${hostname}`,
-				source: 'bun-https',
+				id: `e-${sourceNodeId}-${route.hostname}`,
+				source: sourceNodeId,
 				target: nodeId,
 				animated: true,
 				label: edgeLabel(eStat),
-				style: edgeStyle(eStat),
-				markerEnd: { type: MarkerType.ArrowClosed, color: edgeStyle(eStat).stroke },
-				labelStyle: { fontSize: labelFontSize, fill: '#94a3b8' },
-				labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
-				labelBgPadding: [4, 6] as [number, number],
-				labelBgBorderRadius: 4,
+				style: { ...baseStyle, opacity: dimmed ? DIM_EDGE : 1 },
+				markerEnd: { type: MarkerType.ArrowClosed, color: baseStyle.stroke },
+				...edgeLabelProps,
 			});
+		}
 
-			serviceIdx++;
+		// Per-chip counts over the full unique-route set (independent of active filters).
+		const sourceCounts = emptySourceCounts();
+		const healthCounts = emptyHealthCounts();
+		for (const route of uniqueRoutes.values()) {
+			sourceCounts[route.source]++;
+			healthCounts[healthOf(stats?.hostStats[route.hostname])]++;
+		}
+
+		// Toolbar (grouping + filtering) only appears once the fan-out is large.
+		const toolbarActive = uniqueRoutes.size > GROUPING_THRESHOLD;
+		const effectiveMode: GroupingMode = toolbarActive ? groupingMode : 'none';
+
+		const filtering = toolbarActive && isFilterActive(filters);
+		const spotlight = filters.matchMode === 'spotlight';
+		const hideMode = filtering && !spotlight;
+
+		const matches = (route: ProxyRoute) => matchesRoute(route, stats, filters);
+		const dimmedFor = (route: ProxyRoute) => filtering && spotlight && !matches(route);
+
+		const allRoutes = [...uniqueRoutes.values()];
+		const visibleRoutes = hideMode ? allRoutes.filter(matches) : allRoutes;
+
+		if (effectiveMode === 'none') {
+			visibleRoutes.forEach((route, idx) => {
+				pushServiceNode(route, COL[3], 10 * scale + idx * ROW_HEIGHT, 'bun-https', dimmedFor(route));
+			});
+		} else {
+			const groups = groupRoutes(visibleRoutes, effectiveMode);
+			let cursorY = 10 * scale;
+
+			for (const group of groups) {
+				if (group.routes.length === 1) {
+					const route = group.routes[0];
+					pushServiceNode(route, COL[3], cursorY, 'bun-https', dimmedFor(route));
+					cursorY += ROW_HEIGHT;
+					continue;
+				}
+
+				const expanded = expandedGroups.has(group.key);
+				const groupId = `grp-${group.key}`;
+				const agg = aggregateStats(
+					group.routes.map((route) => route.hostname),
+					stats?.hostStats,
+				);
+				const groupDimmed = filtering && spotlight && !group.routes.some(matches);
+				const baseStyle = edgeStyle(agg);
+
+				nodes.push({
+					id: groupId,
+					type: 'serviceGroup',
+					position: { x: COL[3], y: cursorY },
+					data: { label: group.label, count: group.routes.length, stats: agg, expanded },
+					draggable: true,
+					style: groupDimmed ? { opacity: DIM_NODE } : undefined,
+				});
+
+				edges.push({
+					id: `e-bun-${groupId}`,
+					source: 'bun-https',
+					target: groupId,
+					animated: true,
+					label: edgeLabel(agg),
+					style: { ...baseStyle, opacity: groupDimmed ? DIM_EDGE : 1 },
+					markerEnd: { type: MarkerType.ArrowClosed, color: baseStyle.stroke },
+					...edgeLabelProps,
+				});
+
+				if (expanded) {
+					group.routes.forEach((route, memberIdx) => {
+						pushServiceNode(route, COL[4], cursorY + memberIdx * ROW_HEIGHT, groupId, dimmedFor(route));
+					});
+					cursorY += group.routes.length * ROW_HEIGHT;
+				} else {
+					cursorY += ROW_HEIGHT;
+				}
+			}
 		}
 
 		// Infra edges
@@ -175,10 +283,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			label: '*.lvh.me',
 			style: { stroke: '#6366f1', strokeWidth: 1.5 },
 			markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
-			labelStyle: { fontSize: labelFontSize, fill: '#94a3b8' },
-			labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
-			labelBgPadding: [4, 6] as [number, number],
-			labelBgBorderRadius: 4,
+			...edgeLabelProps,
 		});
 
 		edges.push({
@@ -189,10 +294,7 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			label: topology.traefik.domains?.[0] ?? 'passthrough',
 			style: { stroke: '#f97316', strokeWidth: 1.5 },
 			markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316' },
-			labelStyle: { fontSize: labelFontSize, fill: '#94a3b8' },
-			labelBgStyle: { fill: labelBg, fillOpacity: 0.7 },
-			labelBgPadding: [4, 6] as [number, number],
-			labelBgBorderRadius: 4,
+			...edgeLabelProps,
 		});
 
 		edges.push({
@@ -204,6 +306,6 @@ export function useFlowLayout(topology: ProxyTopology | null, stats: ProxyStats 
 			markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
 		});
 
-		return { nodes, edges };
-	}, [topology, stats, isDark, scale]);
+		return { nodes, edges, toolbarActive, sourceCounts, healthCounts };
+	}, [topology, stats, isDark, scale, groupingMode, expandedGroups, filters]);
 }

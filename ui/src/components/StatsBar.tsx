@@ -40,13 +40,7 @@ export function StatsBar({ topology, stats }: StatsBarProps) {
 	return (
 		<div className="grid grid-cols-2 md:grid-cols-5 gap-2">
 			<StatCard
-				icon={
-					mode === 'docker' ? (
-						<Cube size={18} weight="bold" />
-					) : (
-						<Terminal size={18} weight="bold" />
-					)
-				}
+				icon={mode === 'docker' ? <Cube size={18} weight="bold" /> : <Terminal size={18} weight="bold" />}
 				label="Runtime"
 				value={mode === 'docker' ? 'Docker' : 'Host-native'}
 			/>

@@ -1,6 +1,6 @@
 # local-proxy
 
-A Go-based HTTPS reverse proxy for local development. Single static binary (~9 MB) with an embedded React dashboard. Routes `*.lvh.me` (configurable) domains via SNI, auto-discovers Docker containers, and supports passthrough to other proxies like Traefik.
+A Go-based HTTPS reverse proxy for local development. Single static binary (~9 MB) with an embedded React dashboard. Routes `*.lvh.me` (configurable) domains via SNI with HTTP/2 support, auto-discovers Docker containers (native, Traefik, and Caddy labels), routes TLS database connections, and passes other domains through to existing proxies like Traefik.
 
 ## Architecture
 
@@ -8,19 +8,27 @@ A Go-based HTTPS reverse proxy for local development. Single static binary (~9 M
   Docker mode:  443 -> container:9443,  80 -> container:9080
   Host-native:  iptables/pfctl 443 -> 9443,  80 -> 9080
 
-  :443 ──> SNI Router (:9443) ──┬──> HTTPS Server (:9444) ──> Docker/static services
-           TLS ClientHello      │    *.lvh.me                  notes.lvh.me -> 172.19.0.6:5173
-           hostname parsing     │                              app.lvh.me -> localhost:5174
+  :443 ──> SNI Router (:9443) ──┬──> HTTPS Server (:9444, h2 + http/1.1) ──> Docker/static services
+           TLS ClientHello      │    *.lvh.me                                notes.lvh.me -> 172.19.0.6:5173
+           hostname parsing     │                                            app.lvh.me   -> localhost:5174
                                 │
                                 └──> Passthrough (TCP, no TLS termination)
                                      Configured domains -> Traefik/other proxy
 
   :80  ──> HTTP Redirect (:9080) ──> 301 -> https://
+
+  TCP Router (per port) ──> TLS terminate (SNI) ──> plaintext -> database container
+  db.lvh.me:5432/6379/3306                          postgres / redis / mysql
 ```
+
+When no passthrough domains are configured, the SNI router is skipped and the HTTPS server binds `:9443` directly (the `:9444` indirection only exists to share port 443 with Traefik).
 
 - **Go binary** with `//go:embed` — dashboard UI compiled into the binary, no separate container
 - **Provider pattern** — Docker and File providers push config through an aggregator to the router (Traefik-inspired architecture)
 - **SNI routing** parses TLS ClientHello without terminating TLS, so passthrough targets keep their own certificates
+- **HTTP/2** — the HTTPS server advertises `h2` via ALPN; upstreams can opt into HTTP/2 cleartext (`h2c`, e.g. gRPC) per route
+- **TCP routing** — terminates TLS for database connections (PostgreSQL, Redis, MySQL) and forwards plaintext to the container
+- **Host header preserved** — the client `Host` is forwarded upstream (matches Traefik/Caddy defaults) so backends that build URLs from the request host work
 - **Port redirection** via iptables (Linux) or pfctl (macOS) redirects standard ports to high ports
 - **mkcert** wildcard cert for `*.lvh.me` (or custom `BASE_DOMAIN`) in `certs/`
 
@@ -166,6 +174,7 @@ services:
       traefik.enable: "true"
       traefik.http.routers.my-app.rule: "Host(`my-app.lvh.me`) && PathPrefix(`/api`)"
       traefik.http.services.my-app.loadbalancer.server.port: "5173"
+      traefik.http.services.my-app.loadbalancer.server.scheme: h2c   # optional: HTTP/2-cleartext upstream (gRPC)
       traefik.http.middlewares.my-app-strip.stripprefix.prefixes: /api
 
       # Caddy format (caddy-docker-proxy compatible)
@@ -175,6 +184,8 @@ services:
 ```
 
 Label priority: `local-proxy.*` > `traefik.*` > `caddy*`. If a container has multiple label formats, only the highest-priority one is used. Routes update automatically when containers start/stop.
+
+Traefik rules are parsed for `Host(...)`, `HostRegexp(...)` (regex hostnames), and `PathPrefix(...)`. The `loadbalancer.server.scheme: h2c` label routes to HTTP/2-cleartext upstreams (e.g. gRPC).
 
 ### Static routes (routes.yaml)
 
@@ -186,9 +197,13 @@ routes:
     target: 5174                          # port-only: auto-resolves host
   - host: remote-app.lvh.me
     target: http://192.168.1.50:3000      # full URL: used as-is
+  - host: win-app.lvh.me
+    target: host.docker.internal:3000     # Windows-side service (WSL → Windows gateway)
+  - host: wsl-app.lvh.me
+    target: host.wsl.internal:3000        # WSL2 Linux-side service (no gateway rewrite)
 ```
 
-Port-only targets resolve to `localhost` (host-native) or `host.docker.internal` (Docker) automatically.
+Port-only targets resolve to `localhost` (host-native) or `host.docker.internal` (Docker) automatically. On WSL, `host.docker.internal` is rewritten to the WSL → Windows gateway; use the `host.wsl.internal` sentinel to reach a service on the WSL Linux host instead.
 
 ### Passthrough domains
 
@@ -206,6 +221,31 @@ Passthrough domains also need mkcert certs in `certs/` (used as fallback when th
 ```bash
 mkcert -cert-file certs/example-local.com.pem -key-file certs/example-local.com-key.pem "*.example-local.com"
 ```
+
+### TCP services (databases)
+
+local-proxy can front raw TCP services (PostgreSQL, Redis, MySQL) over TLS. It listens on the service port, reads the SNI hostname from the TLS ClientHello, terminates TLS with the matching mkcert certificate, and forwards plaintext to the upstream container.
+
+Define TCP routes in `routes.yaml`:
+
+```yaml
+tcp:
+  - host: db.lvh.me
+    target: 5432        # upstream port (host auto-resolves like routes above)
+    listen: 5432        # port local-proxy listens on
+```
+
+Or auto-discover from Docker via Traefik TCP labels:
+
+```yaml
+labels:
+  traefik.enable: "true"
+  traefik.tcp.routers.db.rule: "HostSNI(`db.lvh.me`)"
+  traefik.tcp.routers.db.entrypoints: postgres                  # redis | postgres | mysql
+  traefik.tcp.services.db.loadbalancer.server.port: "5432"
+```
+
+Entrypoint names map to default listen ports: `redis` → 6379, `postgres` → 5432, `mysql` → 3306. Connect with a TLS-capable client using the SNI hostname, e.g. `psql "host=db.lvh.me sslmode=require"`. In Docker mode, `docker-compose.yaml` maps these listen ports to high host ports (`15432`→5432, `16379`→6379, `13306`→3306) so they don't collide with databases already running on the host — connect to the high port with the SNI hostname.
 
 ## Coexistence with Traefik / Caddy
 
@@ -236,12 +276,14 @@ For anything beyond local dev routing, use Traefik or Caddy directly.
 
 ## Dashboard
 
-Live architecture visualization at `https://proxy.lvh.me`:
+Embedded React UI at `https://proxy.lvh.me`:
 
-- **Flow diagram** — Interactive topology map (React Flow) showing SNI router, HTTPS server, Traefik, and all service nodes
-- **Stats** — Total requests, uptime, active routes, error rate
-- **Request log** — Recent requests with method, host, path, status, and duration
-- **Light/dark theme** — Follows system preference with manual toggle
+- **Dashboard** — interactive topology map (React Flow) showing the SNI router, HTTPS server, Traefik, and all service nodes, plus a stats bar (total requests, uptime, active routes, error rate)
+- **Activity** — filterable, sortable request log (method, host, path, status, duration; absolute or relative timestamps)
+- **Architecture** — the in-app explainer for traffic flow, SNI routing, TLS, and service discovery, with a Docker / host-native mode toggle
+- **Glossary** — abbreviations used across the UI
+- **Endpoints** — reference for the proxy's own REST API
+- **Theme & scale** — light / dark / system theme (follows OS preference) and font-size scaling
 
 ## Commands
 
@@ -271,6 +313,8 @@ Live architecture visualization at `https://proxy.lvh.me`:
 
 CLI flags override environment variables. Environment variables override defaults.
 
+Environment-only (no CLI flag): `DOCKER_NETWORK` (Docker network to watch, default `traefik`), `VITE_DEV_URL` (dashboard dev-proxy target for HMR), `HOST_GATEWAY_IP` (override host-gateway auto-detection).
+
 ## Key Files
 
 ```
@@ -278,9 +322,10 @@ cmd/local-proxy/
   main.go              Entry point, provider wiring, signal handling
 internal/
   config/              BASE_DOMAIN, HOST_ADDRESS, CLI flags, env vars
-  proxy/               HTTP reverse proxy (httputil.ReverseProxy) + WebSocket
+  hostdetect/          Host-gateway detection (WSL / Docker, host.wsl.internal sentinel)
+  proxy/               HTTP reverse proxy (httputil.ReverseProxy) + WebSocket + h2c upstreams
   router/              Route table (hostname+path -> target, RWMutex)
-  server/              SNI router, HTTPS/HTTP servers, TCP router
+  server/              SNI router, HTTPS (h2 ALPN) / HTTP servers, TCP router
   provider/docker/     Docker event watcher + label parsers (3 formats)
   provider/file/       routes.yaml loader + fsnotify watcher
   aggregator/          Merges provider configs (non-blocking channel)

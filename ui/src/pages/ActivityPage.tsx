@@ -189,8 +189,7 @@ function VirtualRequestTable({
 				<div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
 					{rowVirtualizer.getVirtualItems().map((virtualRow) => {
 						const req = requests[virtualRow.index];
-						const timeLabel =
-							timeFormat === 'relative' ? formatTimeAgo(req.timestamp, now) : formatTime(req.timestamp);
+						const timeLabel = timeFormat === 'relative' ? formatTimeAgo(req.timestamp, now) : formatTime(req.timestamp);
 						return (
 							<div
 								key={virtualRow.key}
@@ -285,7 +284,7 @@ export function ActivityPage({ topology, stats }: ActivityPageProps) {
 	}, [requests, filters, sort]);
 
 	return (
-		<div className="flex flex-col gap-3 h-[calc(100vh-theme(spacing.14))]">
+		<div className="flex flex-col gap-3 h-full">
 			<StatsBar topology={topology} stats={stats} />
 			<FilterBar filters={filters} onFiltersChange={setFilters} hosts={uniqueHosts} />
 			<VirtualRequestTable
