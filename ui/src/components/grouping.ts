@@ -19,14 +19,39 @@ export function formatCount(n: number): string {
 	return String(n);
 }
 
+function looksLikeRegex(hostname: string): boolean {
+	return /[\^$()[\]\\|]/.test(hostname) || hostname.includes('.*') || hostname.includes('.+');
+}
+
+// Turn a Traefik HostRegexp pattern into a glob-ish hostname so it groups
+// by its real base domain, e.g. `^[^.]+[.]example[.]com$` -> `*.example.com`.
+// Plain hostnames pass through unchanged.
+export function normalizeHostname(hostname: string): string {
+	if (!looksLikeRegex(hostname)) return hostname;
+	const collapsed = hostname
+		.trim()
+		.replace(/^\(\?[a-z]+\)/, '') // inline flags like (?i)
+		.replace(/^\^/, '')
+		.replace(/\$$/, '')
+		.replace(/\\\./g, '.') // escaped dots
+		.replace(/\[\.\]/g, '.') // char-class dots
+		.replace(/\[\^.\]\+/g, '*') // single-label wildcard [^.]+
+		.replace(/\[\^.\]\*/g, '*')
+		.replace(/\.\*/g, '*') // greedy wildcards
+		.replace(/\.\+/g, '*');
+	// Any leftover regex-y label becomes a wildcard so it can't pollute the key.
+	const labels = collapsed.split('.').map((label) => (/^[a-z0-9*-]+$/i.test(label) ? label : '*'));
+	return labels.join('.');
+}
+
 function baseDomain(hostname: string): string {
-	const parts = hostname.split('.');
-	if (parts.length <= 2) return hostname;
+	const parts = normalizeHostname(hostname).split('.');
+	if (parts.length <= 2) return parts.join('.');
 	return parts.slice(-2).join('.');
 }
 
 function hostPrefix(hostname: string): string {
-	const firstLabel = hostname.split('.')[0];
+	const firstLabel = normalizeHostname(hostname).split('.')[0];
 	return firstLabel.split('-')[0];
 }
 
