@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -55,7 +55,7 @@ func (d *DockerProvider) GetDockerTcpRoutes() []provider.TcpRoute {
 	return routes
 }
 
-func (d *DockerProvider) resolveContainerRoute(info types.Container, parsed *parsedLabels, source string) []provider.Route {
+func (d *DockerProvider) resolveContainerRoute(info container.Summary, parsed *parsedLabels, source string) []provider.Route {
 	networks := info.NetworkSettings.Networks
 	networkInfo, ok := networks[d.networkName]
 	name := "unknown"
@@ -108,7 +108,7 @@ func (d *DockerProvider) resolveContainerRoute(info types.Container, parsed *par
 
 func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client) ([]provider.Route, []provider.TcpRoute) {
 	// 1. Discover proxy-labeled containers
-	proxyContainers, err := cli.ContainerList(ctx, types.ContainerListOptions{
+	proxyContainers, err := cli.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "local-proxy.host")),
 	})
 	if err != nil {
@@ -134,7 +134,7 @@ func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client)
 	}
 
 	// 2. Discover traefik-labeled containers
-	traefikContainers, err := cli.ContainerList(ctx, types.ContainerListOptions{
+	traefikContainers, err := cli.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "traefik.enable=true")),
 	})
 	if err != nil {
@@ -196,7 +196,7 @@ func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client)
 	}
 
 	// 3. Discover caddy-labeled containers
-	allContainers, err := cli.ContainerList(ctx, types.ContainerListOptions{})
+	allContainers, err := cli.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
 		logger.Error("Failed to list all containers", err)
 		return routes, tcpRoutes
@@ -264,7 +264,7 @@ func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client)
 }
 
 func (d *DockerProvider) discoverTraefik(ctx context.Context, cli *client.Client) {
-	containers, err := cli.ContainerList(ctx, types.ContainerListOptions{})
+	containers, err := cli.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
 		return
 	}
@@ -333,7 +333,7 @@ func (d *DockerProvider) watchEvents(ctx context.Context, cli *client.Client, co
 		default:
 		}
 
-		eventCh, errCh := cli.Events(ctx, types.EventsOptions{
+		eventCh, errCh := cli.Events(ctx, events.ListOptions{
 			Filters: filters.NewArgs(
 				filters.Arg("type", "container"),
 				filters.Arg("event", "start"),
