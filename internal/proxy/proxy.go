@@ -98,6 +98,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// container's bind address. httputil.ReverseProxy routes by
 			// req.URL.Host (set above) and sends req.Host as the Host header;
 			// leaving it as the original incoming Host preserves it.
+
+			// Go canonicalises Sec-WebSocket-* to Sec-Websocket-*; case-sensitive
+			// upstream WebSocket servers reject the handshake otherwise. ReverseProxy
+			// upgrade-tunnels the request and writes these header keys verbatim, so
+			// restoring the RFC 6455 casing here makes wss:// upgrades succeed.
+			restoreWebSocketHeaderCase(req.Header)
 		},
 		Transport: transport,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -131,4 +137,27 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy.ServeHTTP(w, r)
+}
+
+// wsHeaderCanonicalToRFC maps Go's canonical header keys to the exact RFC 6455 casing.
+// Go's http.Header canonicalises "Sec-WebSocket-Key" to "Sec-Websocket-Key"; some upstream
+// WebSocket servers look these headers up case-sensitively and reject the handshake when the
+// case differs. We restore the RFC casing on the way out so the upstream accepts the upgrade.
+var wsHeaderCanonicalToRFC = map[string]string{
+	"Sec-Websocket-Key":        "Sec-WebSocket-Key",
+	"Sec-Websocket-Version":    "Sec-WebSocket-Version",
+	"Sec-Websocket-Extensions": "Sec-WebSocket-Extensions",
+	"Sec-Websocket-Protocol":   "Sec-WebSocket-Protocol",
+	"Sec-Websocket-Accept":     "Sec-WebSocket-Accept",
+}
+
+// restoreWebSocketHeaderCase rewrites canonicalised Sec-Websocket-* header keys back to their
+// RFC 6455 casing in place, preserving values.
+func restoreWebSocketHeaderCase(h http.Header) {
+	for canonical, rfc := range wsHeaderCanonicalToRFC {
+		if values, ok := h[canonical]; ok {
+			delete(h, canonical)
+			h[rfc] = values
+		}
+	}
 }
