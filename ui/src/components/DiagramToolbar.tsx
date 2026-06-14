@@ -1,5 +1,6 @@
 import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
+import { isEditableTarget } from '../utils';
 import { type FlowFilters, type MatchMode, SOURCE_OPTIONS, type SourceKind } from './filters';
 import { GROUPING_MODES, type GroupingMode } from './grouping';
 import { HEALTH_DOT, HEALTH_LABEL, HEALTH_STATES, type HealthState } from './health';
@@ -32,12 +33,6 @@ const bubbleBase =
 	'absolute -top-2 -right-1.5 min-w-[15px] h-[15px] px-1 rounded-full text-[0.5rem] font-semibold leading-[15px] text-center tabular-nums';
 const bubbleActive = 'bg-indigo-500 text-white';
 const bubbleIdle = 'bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-zinc-300';
-
-function isEditableTarget(el: Element | null): boolean {
-	if (!el) return false;
-	const tag = el.tagName;
-	return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el as HTMLElement).isContentEditable;
-}
 
 function FilterChip({
 	label,

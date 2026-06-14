@@ -1,6 +1,7 @@
 import { Background, Controls, type Node, type NodeTypes, ReactFlow } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ProxyStats, ProxyTopology } from '../types';
+import { DiagramShortcuts } from './DiagramShortcuts';
 import { DiagramToolbar } from './DiagramToolbar';
 import { type FlowFilters, isFilterActive, type MatchMode, type SourceKind } from './filters';
 import { GROUPING_MODES, type GroupingMode } from './grouping';
@@ -142,6 +143,7 @@ export function FlowDiagram({ topology, stats, scale }: FlowDiagramProps) {
 						showInteractive={false}
 						className="!bg-white/80 dark:!bg-zinc-900/80 !border-gray-200 dark:!border-zinc-700 !shadow-lg !rounded-lg [&_button]:!bg-transparent [&_button]:!border-gray-200 dark:[&_button]:!border-zinc-700 [&_button]:!text-gray-600 dark:[&_button]:!text-zinc-400"
 					/>
+					<DiagramShortcuts />
 				</ReactFlow>
 			</div>
 		</div>

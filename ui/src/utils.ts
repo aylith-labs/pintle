@@ -1,3 +1,9 @@
+export function isEditableTarget(el: Element | null): boolean {
+	if (!el) return false;
+	const tag = el.tagName;
+	return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el as HTMLElement).isContentEditable;
+}
+
 export function statusColor(status: number): string {
 	if (status < 300) return 'text-emerald-500';
 	if (status < 400) return 'text-amber-500';
