@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/hostdetect"
+	"github.com/aylith-labs/pintle/internal/hostdetect"
 )
 
 type Config struct {
@@ -72,13 +72,13 @@ func Load() *Config {
 	flag.StringVar(&cfg.LogFormat, "log-format", cfg.LogFormat, "Log format (text, json)")
 	flag.Parse()
 
-	cfg.DashboardHost = fmt.Sprintf("proxy.%s", cfg.BaseDomain)
+	cfg.DashboardHost = fmt.Sprintf("pintle.%s", cfg.BaseDomain)
 
-	// Resolve routes file: ./routes.yaml → ~/.config/local-proxy/routes.yaml
+	// Resolve routes file: ./routes.yaml → ~/.config/pintle/routes.yaml
 	if cfg.RoutesFile == "./routes.yaml" {
 		if _, err := os.Stat(cfg.RoutesFile); os.IsNotExist(err) {
 			if home, err := os.UserHomeDir(); err == nil {
-				xdgPath := filepath.Join(home, ".config", "local-proxy", "routes.yaml")
+				xdgPath := filepath.Join(home, ".config", "pintle", "routes.yaml")
 				if _, err := os.Stat(xdgPath); err == nil {
 					cfg.RoutesFile = xdgPath
 				}

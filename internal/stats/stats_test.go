@@ -6,7 +6,7 @@ import (
 )
 
 func TestRecordAndRetrieve(t *testing.T) {
-	c := NewCollector("proxy.lvh.me")
+	c := NewCollector("pintle.lvh.me")
 
 	c.Record(RequestRecord{
 		Timestamp:  time.Now().UnixMilli(),
@@ -28,12 +28,12 @@ func TestRecordAndRetrieve(t *testing.T) {
 }
 
 func TestDashboardHostFiltered(t *testing.T) {
-	c := NewCollector("proxy.lvh.me")
+	c := NewCollector("pintle.lvh.me")
 
 	c.Record(RequestRecord{
 		Timestamp: time.Now().UnixMilli(),
 		Method:    "GET",
-		Hostname:  "proxy.lvh.me",
+		Hostname:  "pintle.lvh.me",
 		Path:      "/api/health",
 		Target:    "internal",
 		Status:    200,
@@ -46,7 +46,7 @@ func TestDashboardHostFiltered(t *testing.T) {
 }
 
 func TestHostStats(t *testing.T) {
-	c := NewCollector("proxy.lvh.me")
+	c := NewCollector("pintle.lvh.me")
 
 	for i := 0; i < 5; i++ {
 		c.Record(RequestRecord{
@@ -84,7 +84,7 @@ func TestHostStats(t *testing.T) {
 }
 
 func TestCircularBuffer(t *testing.T) {
-	c := NewCollector("proxy.lvh.me")
+	c := NewCollector("pintle.lvh.me")
 
 	for i := 0; i < 1100; i++ {
 		c.Record(RequestRecord{
@@ -109,7 +109,7 @@ func TestCircularBuffer(t *testing.T) {
 }
 
 func TestTotalRequests(t *testing.T) {
-	c := NewCollector("proxy.lvh.me")
+	c := NewCollector("pintle.lvh.me")
 
 	c.Record(RequestRecord{Timestamp: 1, Method: "GET", Hostname: "a.lvh.me", Status: 200})
 	c.Record(RequestRecord{Timestamp: 2, Method: "GET", Hostname: "b.lvh.me", Status: 200})

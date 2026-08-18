@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
-	"github.com/steven-pribilinskiy/local-proxy/internal/router"
-	"github.com/steven-pribilinskiy/local-proxy/internal/stats"
+	"github.com/aylith-labs/pintle/internal/provider"
+	"github.com/aylith-labs/pintle/internal/router"
+	"github.com/aylith-labs/pintle/internal/stats"
 )
 
 // TestHostHeaderPreservation guards against regressing back to the

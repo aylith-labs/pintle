@@ -15,9 +15,9 @@ type parsedLabels struct {
 	H2C          bool // upstream speaks HTTP/2 cleartext (gRPC)
 }
 
-// parseProxyLabels parses local-proxy.* labels.
+// parseProxyLabels parses pintle.* labels.
 func parseProxyLabels(labels map[string]string) *parsedLabels {
-	hostLabel, ok := labels["local-proxy.host"]
+	hostLabel, ok := labels["pintle.host"]
 	if !ok {
 		return nil
 	}
@@ -28,16 +28,16 @@ func parseProxyLabels(labels map[string]string) *parsedLabels {
 	}
 
 	port := 0
-	if portStr, ok := labels["local-proxy.port"]; ok {
+	if portStr, ok := labels["pintle.port"]; ok {
 		port, _ = strconv.Atoi(portStr)
 	}
 
-	path := labels["local-proxy.path"]
+	path := labels["pintle.path"]
 	if path == "" {
 		path = "/"
 	}
 
-	strip := labels["local-proxy.strip"] == "true"
+	strip := labels["pintle.strip"] == "true"
 
 	return &parsedLabels{
 		Hosts: hosts,

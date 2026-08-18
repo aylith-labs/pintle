@@ -10,7 +10,7 @@ export default defineConfig({
 		strictPort: true,
 		allowedHosts: true,
 		hmr: {
-			// HMR goes through the proxy at proxy.lvh.me
+			// HMR goes through the proxy at pintle.lvh.me
 			host: `proxy.${process.env.BASE_DOMAIN ?? 'lvh.me'}`,
 			port: 443,
 			protocol: 'wss',

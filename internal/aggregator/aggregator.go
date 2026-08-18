@@ -3,7 +3,7 @@ package aggregator
 import (
 	"sync"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
+	"github.com/aylith-labs/pintle/internal/provider"
 )
 
 type Configuration struct {

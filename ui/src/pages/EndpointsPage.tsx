@@ -65,7 +65,7 @@ export function EndpointsPage() {
 			<div>
 				<h1 className="text-sm font-semibold tracking-tight">API Endpoints</h1>
 				<p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
-					All endpoints are served at <code className="text-indigo-500">https://proxy.lvh.me</code>
+					All endpoints are served at <code className="text-indigo-500">https://pintle.lvh.me</code>
 				</p>
 			</div>
 			<div className="space-y-3">

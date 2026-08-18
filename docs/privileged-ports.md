@@ -1,10 +1,10 @@
 # Binding to Privileged Ports (80/443)
 
-Ports below 1024 are "privileged" on Linux/macOS — only root can bind to them. local-proxy supports two deployment modes: Docker (primary) and host-native, each handling privileged ports differently.
+Ports below 1024 are "privileged" on Linux/macOS — only root can bind to them. pintle supports two deployment modes: Docker (primary) and host-native, each handling privileged ports differently.
 
 ## Approaches
 
-### 1. Port redirection (what local-proxy uses in host-native mode)
+### 1. Port redirection (what pintle uses in host-native mode)
 
 Listen on unprivileged ports (9443/9080) and redirect standard ports via OS firewall rules:
 
@@ -22,7 +22,7 @@ The binary supports `--port-redirect` to manage these rules automatically.
 Grant the specific "bind low ports" capability to the binary:
 
 ```bash
-sudo setcap cap_net_bind_service=+ep ./local-proxy
+sudo setcap cap_net_bind_service=+ep ./pintle
 ```
 
 Then the binary can directly bind to port 443 without sudo or iptables.
@@ -40,7 +40,7 @@ sudo apt install authbind
 sudo touch /etc/authbind/byport/443
 sudo chmod 500 /etc/authbind/byport/443
 sudo chown $USER /etc/authbind/byport/443
-authbind ./local-proxy
+authbind ./pintle
 ```
 
 **Pros**: Fine-grained (per-port, per-user), doesn't modify the binary.
@@ -59,13 +59,13 @@ sudo sysctl net.ipv4.ip_unprivileged_port_start=80
 
 **Cons**: System-wide — any process can bind to ports 80+. Persists until reboot (or add to `/etc/sysctl.conf` to survive reboots). Linux-only.
 
-### 5. Docker + port mapping (what local-proxy uses by default)
+### 5. Docker + port mapping (what pintle uses by default)
 
 Containerize the proxy and let Docker handle port binding (Docker daemon runs as root):
 
 ```yaml
 services:
-  local-proxy:
+  pintle:
     ports:
       - "443:9443"
       - "80:9080"
@@ -73,9 +73,9 @@ services:
 
 **Pros**: No sudo at runtime, standard Docker workflow, single 10 MB image.
 
-**Cons**: Host processes require `host.docker.internal` (configured via `extra_hosts` on Linux). local-proxy handles this automatically — port-only targets in `routes.yaml` resolve to `host.docker.internal` when running in Docker.
+**Cons**: Host processes require `host.docker.internal` (configured via `extra_hosts` on Linux). pintle handles this automatically — port-only targets in `routes.yaml` resolve to `host.docker.internal` when running in Docker.
 
-This is the approach local-proxy uses by default (`docker compose up -d`).
+This is the approach pintle uses by default (`docker compose up -d`).
 
 ## How other proxies handle this
 
@@ -84,9 +84,9 @@ This is the approach local-proxy uses by default (`docker compose up -d`).
 | **Traefik** | Runs in Docker; `dockerd` (root) handles host port binding |
 | **Caddy** | Docker, or `setcap` on the binary |
 | **nginx** | Docker, or starts as root then drops privileges after binding |
-| **local-proxy** | Docker (primary), or `--port-redirect` for host-native |
+| **pintle** | Docker (primary), or `--port-redirect` for host-native |
 
-## What local-proxy uses
+## What pintle uses
 
 - **Docker** (primary): `docker compose up -d` — Docker handles port 443/80 binding, `restart: unless-stopped` for daemon behavior. Same pattern as Traefik.
-- **Host-native** (alternative): `./local-proxy --port-redirect` — iptables/pfctl port redirection for development without Docker overhead.
+- **Host-native** (alternative): `./pintle --port-redirect` — iptables/pfctl port redirection for development without Docker overhead.

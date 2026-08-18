@@ -1,6 +1,6 @@
-# local-proxy
+# pintle
 
-A Go-based HTTPS reverse proxy for local development. Single static binary (~9 MB) with an embedded React dashboard. Routes `*.lvh.me` (configurable) domains via SNI with HTTP/2 support, auto-discovers Docker containers (native, Traefik, and Caddy labels), routes TLS database connections, and passes other domains through to existing proxies like Traefik.
+The pin a gate turns on. A Go HTTPS reverse proxy that replaces Traefik and Caddy — it reads **their** labels and **their** config files, so services keep the labels they already have and the proxy underneath them changes. Single static binary (~9 MB) with an embedded React dashboard. Routes domains via SNI with HTTP/2, auto-discovers Docker containers through three label dialects, terminates TLS for database connections, and passes any domain it does not own through to another proxy untouched.
 
 ## Architecture
 
@@ -84,14 +84,14 @@ mkcert -cert-file certs/lvh.me.pem -key-file certs/lvh.me-key.pem "*.lvh.me"
 mkcert -cert-file certs/example-local.com.pem -key-file certs/example-local.com-key.pem "*.example-local.com"
 
 # Create routes config (auto-discovered by the binary)
-mkdir -p ~/.config/local-proxy
-cp routes.example.yaml ~/.config/local-proxy/routes.yaml
+mkdir -p ~/.config/pintle
+cp routes.example.yaml ~/.config/pintle/routes.yaml
 
 # Build
 make build
 ```
 
-Cert filenames must match `certs/${BASE_DOMAIN}.pem` and `certs/${BASE_DOMAIN}-key.pem`. Passthrough domain certs are optional — if missing, local-proxy logs a warning and skips the fallback TLS entry.
+Cert filenames must match `certs/${BASE_DOMAIN}.pem` and `certs/${BASE_DOMAIN}-key.pem`. Passthrough domain certs are optional — if missing, pintle logs a warning and skips the fallback TLS entry.
 
 ## Usage
 
@@ -104,13 +104,13 @@ docker stop traefik  # or: docker stop caddy
 # Clean any leftover iptables rules from host-native mode
 sudo ./scripts/stop.sh
 
-# Start local-proxy
+# Start pintle
 docker compose up -d
 ```
 
-Runs as a daemon with `restart: unless-stopped`. Docker handles port 443/80 binding — no sudo or iptables needed. Services are accessible at `https://notes.lvh.me`, `https://proxy.lvh.me`, etc.
+Runs as a daemon with `restart: unless-stopped`. Docker handles port 443/80 binding — no sudo or iptables needed. Services are accessible at `https://notes.lvh.me`, `https://pintle.lvh.me`, etc.
 
-Traefik keeps running (without host port bindings) — local-proxy passes through `*.example-local.com` traffic to Traefik's container IP via SNI.
+Traefik keeps running (without host port bindings) — pintle passes through `*.example-local.com` traffic to Traefik's container IP via SNI.
 
 Rebuild after code changes:
 ```bash
@@ -122,7 +122,7 @@ docker compose up -d --build
 ```bash
 # Build and run directly
 make build
-./local-proxy --port-redirect
+./pintle --port-redirect
 
 # Or use the shell script wrapper
 ./scripts/start.sh
@@ -137,7 +137,7 @@ make build
 |--|--------|-------------|
 | Port 443/80 | Docker handles binding | iptables/pfctl (requires sudo) |
 | Auto-start | `restart: unless-stopped` | Manual or systemd |
-| Code changes | `docker compose up -d --build` | `make build && ./local-proxy` |
+| Code changes | `docker compose up -d --build` | `make build && ./pintle` |
 | Static routes | `host.docker.internal` (auto) | `localhost` (auto) |
 
 ### Development
@@ -165,10 +165,10 @@ services:
       - traefik
     labels:
       # Native format (preferred)
-      local-proxy.host: my-app.lvh.me    # required: hostname (comma-separated for multiple)
-      local-proxy.port: "5173"           # optional: defaults to first EXPOSE port
-      local-proxy.path: /api             # optional: path prefix match
-      local-proxy.strip: "true"          # optional: strip path prefix before forwarding
+      pintle.host: my-app.lvh.me    # required: hostname (comma-separated for multiple)
+      pintle.port: "5173"           # optional: defaults to first EXPOSE port
+      pintle.path: /api             # optional: path prefix match
+      pintle.strip: "true"          # optional: strip path prefix before forwarding
 
       # Traefik format (also supported)
       traefik.enable: "true"
@@ -183,7 +183,7 @@ services:
       caddy.handle_path: /api/*          # path prefix + strip
 ```
 
-Label priority: `local-proxy.*` > `traefik.*` > `caddy*`. If a container has multiple label formats, only the highest-priority one is used. Routes update automatically when containers start/stop.
+Label priority: `pintle.*` > `traefik.*` > `caddy*`. If a container has multiple label formats, only the highest-priority one is used. Routes update automatically when containers start/stop.
 
 Traefik rules are parsed for `Host(...)`, `HostRegexp(...)` (regex hostnames), and `PathPrefix(...)`. The `loadbalancer.server.scheme: h2c` label routes to HTTP/2-cleartext upstreams (e.g. gRPC).
 
@@ -215,7 +215,7 @@ passthrough:
     target: traefik              # auto-discovers Traefik container IP
 ```
 
-Traffic for `*.example-local.com` is passed through at the TCP level — local-proxy reads the SNI hostname from the TLS ClientHello but does not decrypt the traffic. The target proxy's container IP is auto-discovered on the shared Docker network.
+Traffic for `*.example-local.com` is passed through at the TCP level — pintle reads the SNI hostname from the TLS ClientHello but does not decrypt the traffic. The target proxy's container IP is auto-discovered on the shared Docker network.
 
 Passthrough domains also need mkcert certs in `certs/` (used as fallback when the target proxy is unavailable):
 ```bash
@@ -224,7 +224,7 @@ mkcert -cert-file certs/example-local.com.pem -key-file certs/example-local.com-
 
 ### TCP services (databases)
 
-local-proxy can front raw TCP services (PostgreSQL, Redis, MySQL) over TLS. It listens on the service port, reads the SNI hostname from the TLS ClientHello, terminates TLS with the matching mkcert certificate, and forwards plaintext to the upstream container.
+pintle can front raw TCP services (PostgreSQL, Redis, MySQL) over TLS. It listens on the service port, reads the SNI hostname from the TLS ClientHello, terminates TLS with the matching mkcert certificate, and forwards plaintext to the upstream container.
 
 Define TCP routes in `routes.yaml`:
 
@@ -232,7 +232,7 @@ Define TCP routes in `routes.yaml`:
 tcp:
   - host: db.lvh.me
     target: 5432        # upstream port (host auto-resolves like routes above)
-    listen: 5432        # port local-proxy listens on
+    listen: 5432        # port pintle listens on
 ```
 
 Or auto-discover from Docker via Traefik TCP labels:
@@ -247,36 +247,40 @@ labels:
 
 Entrypoint names map to default listen ports: `redis` → 6379, `postgres` → 5432, `mysql` → 3306. Connect with a TLS-capable client using the SNI hostname, e.g. `psql "host=db.lvh.me sslmode=require"`. In Docker mode, `docker-compose.yaml` maps these listen ports to high host ports (`15432`→5432, `16379`→6379, `13306`→3306) so they don't collide with databases already running on the host — connect to the high port with the SNI hostname.
 
-## Coexistence with Traefik / Caddy
+## Replacing Traefik or Caddy
 
-local-proxy is designed to work **alongside** existing proxies, not replace them:
+pintle is a **drop-in** for both, not a companion to either. It parses `traefik.*` and `caddy*`
+container labels natively, so the migration is a proxy swap and not a re-labelling job:
 
-- **local-proxy takes over ports 443/80** — any existing proxy must stop binding these ports
-- **Traefik container keeps running** — local-proxy passes through configured domains to Traefik at the TCP level
-- **No re-labeling needed** — local-proxy reads Traefik and Caddy labels natively
-- **Gradual migration** — move services one at a time, or keep using original labels indefinitely
+- **pintle takes over ports 443/80** — stop the existing proxy's port bindings first
+- **No re-labelling** — every `traefik.*` and `caddy*` label your services already carry keeps working
+- **Nothing to migrate up front** — point it at the same Docker network and the route table rebuilds itself
+- **Passthrough for anything it should not own** — configured domains are forwarded at the TCP
+  level, SNI read but never decrypted, so another proxy can keep its own certificates on the same
+  port during a staged cutover
 
-To switch back to Traefik: `docker compose down` then `docker start traefik`.
+Rolling back is symmetrical: `docker compose down`, then start the old proxy again.
 
-### What local-proxy is NOT
+### Current limits
 
-local-proxy is a **local development tool**. It is not a replacement for Traefik or Caddy in production or CI:
+pintle terminates TLS with mkcert certificates, which makes it complete for local development and
+incomplete as a public edge. Not yet implemented:
 
-- No automatic Let's Encrypt / ACME (uses mkcert for local certs only)
-- No load balancing across replicas
-- No health checks or circuit breaking
-- No rate limiting or auth middleware
+- Automatic Let's Encrypt / ACME certificates
+- Load balancing across replicas, health checks, circuit breaking
+- Rate limiting and auth middleware beyond the label dialects it parses
 
-For anything beyond local dev routing, use Traefik or Caddy directly.
+Those are the roadmap, not the boundary — until they land, a public-facing deployment still wants
+Traefik or Caddy.
 
 ## Docs
 
-- [Privileged Ports](docs/privileged-ports.md) — Why local-proxy uses iptables/pfctl and how other approaches compare
+- [Privileged Ports](docs/privileged-ports.md) — Why pintle uses iptables/pfctl and how other approaches compare
 - [Benchmark Findings](docs/benchmark-findings.md) — Performance history: Bun stall issue and Go rewrite resolution
 
 ## Dashboard
 
-Embedded React UI at `https://proxy.lvh.me`:
+Embedded React UI at `https://pintle.lvh.me`:
 
 - **Dashboard** — interactive topology map (React Flow) showing the SNI router, HTTPS server, Traefik, and all service nodes, plus a stats bar (total requests, uptime, active routes, error rate)
 - **Activity** — filterable, sortable request log (method, host, path, status, duration; absolute or relative timestamps)
@@ -296,7 +300,7 @@ Embedded React UI at `https://proxy.lvh.me`:
 | `make lint` | Go vet + UI lint |
 | `docker compose up -d` | Docker daemon mode (recommended) |
 | `docker compose up -d --build` | Rebuild and restart |
-| `./local-proxy --port-redirect` | Host-native with port redirection |
+| `./pintle --port-redirect` | Host-native with port redirection |
 
 ## CLI Flags
 
@@ -318,7 +322,7 @@ Environment-only (no CLI flag): `DOCKER_NETWORK` (Docker network to watch, defau
 ## Key Files
 
 ```
-cmd/local-proxy/
+cmd/pintle/
   main.go              Entry point, provider wiring, signal handling
 internal/
   config/              BASE_DOMAIN, HOST_ADDRESS, CLI flags, env vars

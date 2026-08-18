@@ -6,7 +6,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
+	"github.com/aylith-labs/pintle/internal/logger"
 )
 
 // ParseSNI extracts the server name from a TLS ClientHello message.
@@ -94,6 +94,7 @@ type SNIForwardTarget struct {
 
 type SNIRouter struct {
 	Port           int
+	BaseDomain     string
 	LocalTarget    *net.TCPAddr
 	ForwardTargets []SNIForwardTarget
 	// HasLocalRoute reports whether an explicit local route exists for a hostname.
@@ -136,7 +137,7 @@ func (s *SNIRouter) Start(ctx context.Context) error {
 	for _, target := range s.ForwardTargets {
 		logger.Infof("  %s (passthrough, dynamic IP)", target.Label)
 	}
-	logger.Infof("  *.%s -> %s (local TLS)", "lvh.me", s.LocalTarget.String())
+	logger.Infof("  *.%s -> %s (local TLS)", s.BaseDomain, s.LocalTarget.String())
 
 	go func() {
 		<-ctx.Done()

@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
+	"github.com/aylith-labs/pintle/internal/logger"
 )
 
-// Detect returns the address local-proxy should use to reach host-native
+// Detect returns the address pintle should use to reach host-native
 // services (Vite dev servers, etc.) from static routes.
 //
 // Resolution order:

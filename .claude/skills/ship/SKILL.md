@@ -69,7 +69,7 @@ This project uses plain descriptive messages (no conventional commit prefixes). 
 
 ```
 Add Caddy label support for Docker auto-discovery
-Configurable passthrough domains, local-proxy.* labels, single quotes
+Configurable passthrough domains, pintle.* labels, single quotes
 Add configurable BASE_DOMAIN env var (defaults to lvh.me)
 Make port redirect scripts OS-agnostic (Linux + macOS)
 Add settings menu with theme selection and font size controls

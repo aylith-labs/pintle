@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
+	"github.com/aylith-labs/pintle/internal/logger"
+	"github.com/aylith-labs/pintle/internal/provider"
 )
 
 type TCPCert struct {
@@ -156,7 +157,7 @@ func (t *TCPRouter) handleConnection(client net.Conn, port int) {
 	}
 
 	// Connect to upstream
-	upstream, err := net.Dial("tcp", fmt.Sprintf("%s:%d", route.TargetHost, route.TargetPort))
+	upstream, err := net.Dial("tcp", net.JoinHostPort(route.TargetHost, strconv.Itoa(route.TargetPort)))
 	if err != nil {
 		logger.Errorf("TCP[:%d] Failed to connect to %s:%d: %v", port, route.TargetHost, route.TargetPort, err)
 		tlsConn.Close()

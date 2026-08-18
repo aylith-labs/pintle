@@ -11,9 +11,9 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/steven-pribilinskiy/local-proxy/internal/config"
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
+	"github.com/aylith-labs/pintle/internal/config"
+	"github.com/aylith-labs/pintle/internal/logger"
+	"github.com/aylith-labs/pintle/internal/provider"
 )
 
 type DockerProvider struct {
@@ -109,7 +109,7 @@ func (d *DockerProvider) resolveContainerRoute(info container.Summary, parsed *p
 func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client) ([]provider.Route, []provider.TcpRoute) {
 	// 1. Discover proxy-labeled containers
 	proxyContainers, err := cli.ContainerList(ctx, container.ListOptions{
-		Filters: filters.NewArgs(filters.Arg("label", "local-proxy.host")),
+		Filters: filters.NewArgs(filters.Arg("label", "pintle.host")),
 	})
 	if err != nil {
 		logger.Error("Failed to list proxy containers", err)

@@ -1,4 +1,4 @@
-module github.com/steven-pribilinskiy/local-proxy
+module github.com/aylith-labs/pintle
 
 go 1.25.0
 

@@ -4,5 +4,5 @@ certs
 docs
 scripts
 *.md
-local-proxy
+pintle
 internal/api/ui/dist

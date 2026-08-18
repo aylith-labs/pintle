@@ -8,9 +8,9 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
-	"github.com/steven-pribilinskiy/local-proxy/internal/router"
-	"github.com/steven-pribilinskiy/local-proxy/internal/stats"
+	"github.com/aylith-labs/pintle/internal/provider"
+	"github.com/aylith-labs/pintle/internal/router"
+	"github.com/aylith-labs/pintle/internal/stats"
 )
 
 // TestH2CRouteUsesHTTP2 verifies that a route flagged H2C reaches the upstream

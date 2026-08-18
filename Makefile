@@ -1,4 +1,4 @@
-BINARY = local-proxy
+BINARY = pintle
 VERSION = $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS = -s -w -X main.version=$(VERSION)
 GO = go
@@ -13,10 +13,10 @@ ui:
 	cp -r ui/dist internal/api/ui/dist
 
 build: ui
-	CGO_ENABLED=0 $(GO) build -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/local-proxy
+	CGO_ENABLED=0 $(GO) build -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/pintle
 
 build-only:
-	CGO_ENABLED=0 $(GO) build -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/local-proxy
+	CGO_ENABLED=0 $(GO) build -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/pintle
 
 test:
 	$(GO) test ./...
@@ -30,7 +30,7 @@ clean:
 	rm -rf internal/api/ui/dist
 
 dev:
-	VITE_DEV_URL=http://localhost:5175 $(GO) run ./cmd/local-proxy
+	VITE_DEV_URL=http://localhost:5175 $(GO) run ./cmd/pintle
 
 docker:
 	docker compose up -d --build
