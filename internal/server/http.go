@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
+	"github.com/aylith-labs/pintle/internal/logger"
 )
 
 func StartHTTPRedirect(ctx context.Context, port int) error {

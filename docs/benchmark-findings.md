@@ -1,4 +1,4 @@
-# Benchmark: local-proxy performance
+# Benchmark: pintle performance
 
 ## Status: Resolved — Rewritten in Go (March 2026)
 
@@ -59,7 +59,7 @@ Go (current):     10 MB (FROM scratch, static binary with embedded UI)
 #### Direct endpoints (no upstream fetch) — fast
 
 ```
-ab -n 100 -c 10 https://proxy.lvh.me/api/health
+ab -n 100 -c 10 https://pintle.lvh.me/api/health
 -> ~16,000 req/s, 0.6ms/req — Bun.serve itself is fast
 ```
 

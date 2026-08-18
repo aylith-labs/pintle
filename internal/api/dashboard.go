@@ -5,7 +5,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
+	"github.com/aylith-labs/pintle/internal/logger"
 )
 
 // NewDashboardHandler returns a handler that either serves the embedded UI

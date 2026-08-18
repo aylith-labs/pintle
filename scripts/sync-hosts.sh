@@ -1,25 +1,27 @@
 #!/bin/bash
-# Sync local-proxy routes to Windows hosts file.
+# Sync pintle routes to Windows hosts file.
 # Must run as Administrator (or from a Claude Code session with admin privileges).
 
 set -e
 
 HOSTS_FILE="/mnt/c/Windows/System32/drivers/etc/hosts"
-PROXY_URL="${PROXY_URL:-https://proxy.lvh.me}"
+PROXY_URL="${PROXY_URL:-https://pintle.lvh.me}"
 BASE_DOMAIN="${BASE_DOMAIN:-lvh.me}"
-MARKER="# local-proxy"
+MARKER="# pintle"
+# Blocks written before the rename, cleaned up so no host file carries both.
+LEGACY_MARKER="# local-proxy"
 
 # Get current routes from API
 ROUTES=$(curl -sk "$PROXY_URL/api/topology" 2>/dev/null | python3 -c "
 import json,sys
 data=json.load(sys.stdin)
 hosts = set()
-hosts.add('proxy.${BASE_DOMAIN}')
+hosts.add('pintle.${BASE_DOMAIN}')
 for r in data['routes']:
     hosts.add(r['hostname'])
 for h in sorted(hosts):
     print(h)
-" 2>/dev/null) || { echo "ERROR: Cannot reach $PROXY_URL/api/topology — is local-proxy running?"; exit 1; }
+" 2>/dev/null) || { echo "ERROR: Cannot reach $PROXY_URL/api/topology — is pintle running?"; exit 1; }
 
 if [ -z "$ROUTES" ]; then
     echo "No routes found."
@@ -48,15 +50,15 @@ for h in $ROUTES; do
 done
 
 # Remove old block and append new one
-if grep -q "$MARKER" "$HOSTS_FILE"; then
-    # Remove from marker to end of local-proxy block (consecutive 127.0.0.1 lines after marker)
+if grep -q "$MARKER" "$HOSTS_FILE" || grep -q "$LEGACY_MARKER" "$HOSTS_FILE"; then
+    # Remove from either marker to the end of its block (consecutive 127.0.0.1 lines after it)
     python3 -c "
 import sys
 lines = open('$HOSTS_FILE', 'r').readlines()
 out = []
 skip = False
 for line in lines:
-    if line.strip() == '$MARKER':
+    if line.strip() in ('$MARKER', '$LEGACY_MARKER'):
         skip = True
         continue
     if skip:

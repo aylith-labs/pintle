@@ -12,9 +12,9 @@ import (
 
 	"golang.org/x/net/http2"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
-	"github.com/steven-pribilinskiy/local-proxy/internal/router"
-	"github.com/steven-pribilinskiy/local-proxy/internal/stats"
+	"github.com/aylith-labs/pintle/internal/logger"
+	"github.com/aylith-labs/pintle/internal/router"
+	"github.com/aylith-labs/pintle/internal/stats"
 )
 
 type Handler struct {

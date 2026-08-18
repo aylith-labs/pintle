@@ -7,8 +7,8 @@ import (
 func TestParseProxyLabels(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		labels := map[string]string{
-			"local-proxy.host": "app.lvh.me",
-			"local-proxy.port": "5173",
+			"pintle.host": "app.lvh.me",
+			"pintle.port": "5173",
 		}
 		result := parseProxyLabels(labels)
 		if result == nil {
@@ -27,10 +27,10 @@ func TestParseProxyLabels(t *testing.T) {
 
 	t.Run("with path and strip", func(t *testing.T) {
 		labels := map[string]string{
-			"local-proxy.host":  "app.lvh.me",
-			"local-proxy.port":  "5173",
-			"local-proxy.path":  "/api",
-			"local-proxy.strip": "true",
+			"pintle.host":  "app.lvh.me",
+			"pintle.port":  "5173",
+			"pintle.path":  "/api",
+			"pintle.strip": "true",
 		}
 		result := parseProxyLabels(labels)
 		if result == nil {
@@ -46,7 +46,7 @@ func TestParseProxyLabels(t *testing.T) {
 
 	t.Run("multi host", func(t *testing.T) {
 		labels := map[string]string{
-			"local-proxy.host": "app.lvh.me, api.lvh.me",
+			"pintle.host": "app.lvh.me, api.lvh.me",
 		}
 		result := parseProxyLabels(labels)
 		if result == nil {
@@ -62,7 +62,7 @@ func TestParseProxyLabels(t *testing.T) {
 
 	t.Run("no host label", func(t *testing.T) {
 		labels := map[string]string{
-			"local-proxy.port": "5173",
+			"pintle.port": "5173",
 		}
 		result := parseProxyLabels(labels)
 		if result != nil {

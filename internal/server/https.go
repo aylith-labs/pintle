@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
-	tlsmgr "github.com/steven-pribilinskiy/local-proxy/internal/tls"
+	"github.com/aylith-labs/pintle/internal/logger"
+	tlsmgr "github.com/aylith-labs/pintle/internal/tls"
 )
 
 func StartHTTPS(ctx context.Context, port int, hostname string, tlsManager *tlsmgr.Manager, handler http.Handler) error {

@@ -66,7 +66,7 @@ export function App() {
 					<div className="flex items-center gap-4">
 						<div className="flex items-center gap-2.5">
 							<FlowArrow size={20} weight="bold" className="text-indigo-500" />
-							<h1 className="text-sm font-semibold tracking-tight">local-proxy</h1>
+							<h1 className="text-sm font-semibold tracking-tight">pintle</h1>
 						</div>
 
 						{/* Navigation */}

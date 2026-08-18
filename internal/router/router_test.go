@@ -3,7 +3,7 @@ package router
 import (
 	"testing"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
+	"github.com/aylith-labs/pintle/internal/provider"
 )
 
 func TestResolveBasic(t *testing.T) {

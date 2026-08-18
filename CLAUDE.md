@@ -1,10 +1,11 @@
-# local-proxy
+# pintle
 
 ## Project
 Go-based HTTPS reverse proxy for local development (not CI/production).
 Single static binary with embedded React dashboard (~9 MB, 10 MB Docker image).
 Configurable via `BASE_DOMAIN` env var (default: `lvh.me`), uses mkcert certs.
-Coexists with Traefik/Caddy via SNI passthrough for configured domains.
+Drop-in replacement for Traefik and Caddy — parses their labels natively, so services keep
+the labels they already carry. SNI passthrough forwards any domain it should not own.
 
 ## Architecture
 - **Go binary** with `//go:embed` React dashboard
@@ -12,8 +13,8 @@ Coexists with Traefik/Caddy via SNI passthrough for configured domains.
 - SNI router on :9443, Docker handles port 443/80 mapping (or iptables/pfctl in host-native mode)
 - mkcert wildcard cert for `*.${BASE_DOMAIN}` in `certs/`
 - SNI-based routing: passthrough domains → target proxy (TCP, no TLS termination), `*.${BASE_DOMAIN}` → local HTTPS
-- Dashboard at `proxy.${BASE_DOMAIN}` (embedded in production, Vite HMR in dev)
-- Docker auto-discovery via `local-proxy.*`, `traefik.*`, and `caddy*` labels (priority: local-proxy > Traefik > Caddy)
+- Dashboard at `pintle.${BASE_DOMAIN}` (embedded in production, Vite HMR in dev)
+- Docker auto-discovery via `pintle.*`, `traefik.*`, and `caddy*` labels (priority: pintle > Traefik > Caddy)
 - Traefik container IP auto-discovered via Docker API
 - Static routes in `routes.yaml` (equivalent to Traefik's file provider)
 - WebSocket proxying (Vite HMR)
@@ -23,10 +24,10 @@ Coexists with Traefik/Caddy via SNI passthrough for configured domains.
 ```yaml
 # Native format (preferred)
 labels:
-  - local-proxy.host=app.lvh.me      # required: hostname(s), comma-separated
-  - local-proxy.port=5173            # optional: defaults to first EXPOSE port
-  - local-proxy.path=/api            # optional: path prefix match
-  - local-proxy.strip=true           # optional: strip path prefix
+  - pintle.host=app.lvh.me      # required: hostname(s), comma-separated
+  - pintle.port=5173            # optional: defaults to first EXPOSE port
+  - pintle.path=/api            # optional: path prefix match
+  - pintle.strip=true           # optional: strip path prefix
 
 # Traefik format (also supported)
 labels:
@@ -62,13 +63,13 @@ not the upstream's bind address. Regression covered by
 - **Sync hosts**: `make sync-hosts` (updates Windows hosts file from current routes, requires Admin)
 
 ## Configuration
-- `routes.yaml` — auto-discovered from `./routes.yaml` or `~/.config/local-proxy/routes.yaml`
-- `routes.example.yaml` — template to copy to `~/.config/local-proxy/routes.yaml`
+- `routes.yaml` — auto-discovered from `./routes.yaml` or `~/.config/pintle/routes.yaml`
+- `routes.example.yaml` — template to copy to `~/.config/pintle/routes.yaml`
 - `certs/` — mkcert wildcard certs (not committed, gitignored)
 - `routes.yaml` is gitignored (machine-specific, may contain private domains)
 
 ## Key Files (Go)
-- `cmd/local-proxy/main.go` — Entry point, wiring, signal handling
+- `cmd/pintle/main.go` — Entry point, wiring, signal handling
 - `internal/config/config.go` — `BASE_DOMAIN`, `HOST_ADDRESS`, CLI flags, env vars, routes.yaml auto-discovery
 - `internal/proxy/proxy.go` — HTTP reverse proxy (`httputil.ReverseProxy`)
 - `internal/proxy/websocket.go` — WebSocket upgrade + bidirectional pipe
@@ -78,7 +79,7 @@ not the upstream's bind address. Regression covered by
 - `internal/server/https.go` — HTTPS server with dynamic TLS cert selection
 - `internal/server/http.go` — HTTP → HTTPS redirect
 - `internal/provider/docker/docker.go` — Docker event watcher + container discovery
-- `internal/provider/docker/labels.go` — Label parsers (local-proxy, traefik, caddy)
+- `internal/provider/docker/labels.go` — Label parsers (pintle, traefik, caddy)
 - `internal/provider/file/file.go` — routes.yaml loader + fsnotify watcher
 - `internal/aggregator/aggregator.go` — Merges provider configs, non-blocking channel
 - `internal/tls/manager.go` — Certificate loading + SNI callback

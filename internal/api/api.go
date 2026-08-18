@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/config"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider/docker"
-	"github.com/steven-pribilinskiy/local-proxy/internal/router"
-	"github.com/steven-pribilinskiy/local-proxy/internal/stats"
+	"github.com/aylith-labs/pintle/internal/config"
+	"github.com/aylith-labs/pintle/internal/provider"
+	"github.com/aylith-labs/pintle/internal/provider/docker"
+	"github.com/aylith-labs/pintle/internal/router"
+	"github.com/aylith-labs/pintle/internal/stats"
 )
 
 type Handler struct {

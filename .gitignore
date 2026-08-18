@@ -7,5 +7,5 @@ test-results/
 routes.yaml
 
 # Go
-/local-proxy
+/pintle
 internal/api/ui/dist/

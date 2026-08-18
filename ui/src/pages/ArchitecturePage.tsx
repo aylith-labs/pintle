@@ -108,8 +108,8 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			{/* Overview */}
 			<Section title="Overview">
 				<p>
-					local-proxy is a <Abbr>HTTPS</Abbr> reverse proxy for local development. It routes <code>*.lvh.me</code>{' '}
-					domains through a Go-based server and passes <code>*.example-local.com</code> traffic through to Traefik when
+					pintle is a <Abbr>HTTPS</Abbr> reverse proxy for local development. It routes <code>*.lvh.me</code> domains
+					through a Go-based server and passes <code>*.example-local.com</code> traffic through to Traefik when
 					available. All traffic flows through a single entry point on port 443 using <Abbr>SNI</Abbr>-based routing.
 				</p>
 			</Section>
@@ -175,8 +175,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				</p>
 				<p>
 					This is called <strong>TCP passthrough</strong> — the router never decrypts traffic. This allows Traefik to
-					keep using its own certificates while local-proxy uses <Abbr>mkcert</Abbr> certificates, all on the same port
-					443.
+					keep using its own certificates while pintle uses <Abbr>mkcert</Abbr> certificates, all on the same port 443.
 				</p>
 			</Section>
 
@@ -207,13 +206,13 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				<div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm rounded-lg p-4 space-y-3 mt-2">
 					<div>
 						<div className="text-[0.625rem] font-medium uppercase tracking-wider text-sky-500 mb-1">
-							Native labels (local-proxy.*)
+							Native labels (pintle.*)
 						</div>
 						<code className="text-[0.6875rem] block space-y-0.5">
-							<div>local-proxy.host: "myapp.lvh.me"</div>
-							<div>local-proxy.port: "3000"</div>
-							<div>local-proxy.path: "/" (optional)</div>
-							<div>local-proxy.strip: "true" (optional)</div>
+							<div>pintle.host: "myapp.lvh.me"</div>
+							<div>pintle.port: "3000"</div>
+							<div>pintle.path: "/" (optional)</div>
+							<div>pintle.strip: "true" (optional)</div>
 						</code>
 					</div>
 
@@ -241,8 +240,8 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 				</div>
 
 				<p>
-					Priority is <code>local-proxy.*</code> &gt; <code>traefik.*</code> &gt; <code>caddy*</code>. If a container
-					has more than one format, only the highest-priority one is registered. Traefik rules also parse{' '}
+					Priority is <code>pintle.*</code> &gt; <code>traefik.*</code> &gt; <code>caddy*</code>. If a container has
+					more than one format, only the highest-priority one is registered. Traefik rules also parse{' '}
 					<code>HostRegexp(...)</code> and the <code>scheme: h2c</code> service label for HTTP/2-cleartext (gRPC)
 					upstreams.
 				</p>
@@ -263,21 +262,21 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 						</div>
 						<code className="text-[0.6875rem] block space-y-0.5">
 							<div># Frontend container</div>
-							<div>local-proxy.host: "app.lvh.me"</div>
-							<div>local-proxy.port: "3000"</div>
+							<div>pintle.host: "app.lvh.me"</div>
+							<div>pintle.port: "3000"</div>
 							<div>&nbsp;</div>
 							<div># API container</div>
-							<div>local-proxy.host: "app.lvh.me"</div>
-							<div>local-proxy.path: "/api"</div>
-							<div>local-proxy.strip: "true"</div>
-							<div>local-proxy.port: "8080"</div>
+							<div>pintle.host: "app.lvh.me"</div>
+							<div>pintle.path: "/api"</div>
+							<div>pintle.strip: "true"</div>
+							<div>pintle.port: "8080"</div>
 						</code>
 					</div>
 				</div>
 
 				<p>
-					<code>local-proxy.path</code> matches requests by path prefix. <code>local-proxy.strip</code> removes the
-					prefix before forwarding — so <code>/api/users</code> arrives at the backend as <code>/users</code>.
+					<code>pintle.path</code> matches requests by path prefix. <code>pintle.strip</code> removes the prefix before
+					forwarding — so <code>/api/users</code> arrives at the backend as <code>/users</code>.
 				</p>
 				<p>
 					In most cases, prefer separate subdomains (<code>app-api.lvh.me</code>) over path routing. Use path routing
@@ -302,8 +301,8 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			{/* TCP Services */}
 			<Section title="TCP Services (databases)">
 				<p>
-					Beyond <Abbr>HTTP</Abbr>, local-proxy fronts raw <Abbr>TCP</Abbr> database connections (PostgreSQL, Redis,
-					MySQL) over <Abbr>TLS</Abbr>. It listens on the service port, reads the <Abbr>SNI</Abbr> hostname from the{' '}
+					Beyond <Abbr>HTTP</Abbr>, pintle fronts raw <Abbr>TCP</Abbr> database connections (PostgreSQL, Redis, MySQL)
+					over <Abbr>TLS</Abbr>. It listens on the service port, reads the <Abbr>SNI</Abbr> hostname from the{' '}
 					<Abbr>TLS</Abbr> ClientHello, terminates <Abbr>TLS</Abbr> with the matching <Abbr>mkcert</Abbr> certificate,
 					and pipes plaintext to the upstream container.
 				</p>
@@ -343,14 +342,14 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			</Section>
 
 			{/* Comparison */}
-			<Section title="Traefik vs local-proxy">
+			<Section title="Traefik vs pintle">
 				<div className="rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900 shadow-sm mt-2">
 					<table className="w-full text-xs">
 						<thead className="bg-gray-100 dark:bg-zinc-800/60">
 							<tr>
 								<th className="text-left px-4 py-2.5 font-semibold text-gray-500 dark:text-zinc-400 w-1/3" />
 								<th className="text-left px-4 py-2.5 font-semibold text-orange-500">Traefik</th>
-								<th className="text-left px-4 py-2.5 font-semibold text-indigo-500">local-proxy</th>
+								<th className="text-left px-4 py-2.5 font-semibold text-indigo-500">pintle</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60">
@@ -368,7 +367,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Config</td>
 								<td className="px-4 py-2">YAML files + Docker labels (verbose)</td>
 								<td className="px-4 py-2">
-									Simple <code>local-proxy.*</code> labels + <code>routes.yaml</code>
+									Simple <code>pintle.*</code> labels + <code>routes.yaml</code>
 								</td>
 							</tr>
 							<tr>
@@ -396,7 +395,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 								<td className="px-4 py-2 font-medium text-gray-900 dark:text-zinc-200">Dashboard</td>
 								<td className="px-4 py-2">Built-in web UI</td>
 								<td className="px-4 py-2">
-									Custom React UI at <code>proxy.lvh.me</code>
+									Custom React UI at <code>pintle.lvh.me</code>
 								</td>
 							</tr>
 							<tr>
@@ -405,7 +404,7 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 								<td className="px-4 py-2">
 									<span className="inline-flex items-center gap-1.5">
 										<ModeBadge mode={mode} />
-										<code>{isDocker ? 'docker compose up -d' : './local-proxy --port-redirect'}</code>
+										<code>{isDocker ? 'docker compose up -d' : './pintle --port-redirect'}</code>
 									</span>
 								</td>
 							</tr>
@@ -433,8 +432,8 @@ export function ArchitecturePage({ mode: detectedMode }: ArchitecturePageProps) 
 			{/* Why Go */}
 			<Section title="Why Go">
 				<p>
-					local-proxy was originally written in Bun (TypeScript) but rewritten in Go to fix fundamental reliability
-					issues. Go is uniquely suited for reverse proxies:
+					pintle was originally written in Bun (TypeScript) but rewritten in Go to fix fundamental reliability issues.
+					Go is uniquely suited for reverse proxies:
 				</p>
 
 				<div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm rounded-lg p-4 space-y-3 mt-2">

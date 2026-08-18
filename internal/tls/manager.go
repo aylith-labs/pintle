@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
+	"github.com/aylith-labs/pintle/internal/logger"
 )
 
 type Manager struct {
@@ -23,38 +23,55 @@ func NewManager() *Manager {
 	}
 }
 
-func (m *Manager) LoadCerts(certsDir, baseDomain string, passthrough []provider.PassthroughDomain) {
+// discoverDomains returns every domain with a "<domain>.pem" + "<domain>-key.pem" pair in
+// certsDir. The certs directory is the source of truth: a cert is served because it is present,
+// not because some other config section happens to name its domain.
+func discoverDomains(certsDir string) []string {
+	entries, err := os.ReadDir(certsDir)
+	if err != nil {
+		logger.Errorf("Failed to read certs dir %s: %v", certsDir, err)
+		return nil
+	}
+
+	var domains []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".pem") || strings.HasSuffix(name, "-key.pem") {
+			continue
+		}
+		domain := strings.TrimSuffix(name, ".pem")
+		if _, err := os.Stat(filepath.Join(certsDir, domain+"-key.pem")); err != nil {
+			logger.Warnf("Cert %s has no matching %s-key.pem, skipping", name, domain)
+			continue
+		}
+		domains = append(domains, domain)
+	}
+	sort.Strings(domains)
+	return domains
+}
+
+func (m *Manager) LoadCerts(certsDir, baseDomain string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Load base domain cert
-	certPath := filepath.Join(certsDir, baseDomain+".pem")
-	keyPath := filepath.Join(certsDir, baseDomain+"-key.pem")
-
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		logger.Errorf("Failed to load cert for *.%s: %v", baseDomain, err)
-	} else {
-		m.certs[baseDomain] = cert
+	for _, domain := range discoverDomains(certsDir) {
+		cert, err := tls.LoadX509KeyPair(
+			filepath.Join(certsDir, domain+".pem"),
+			filepath.Join(certsDir, domain+"-key.pem"),
+		)
+		if err != nil {
+			logger.Errorf("Failed to load cert for *.%s: %v", domain, err)
+			continue
+		}
+		if _, seen := m.certs[domain]; !seen {
+			logger.Infof("Loaded cert for *.%s", domain)
+		}
+		m.certs[domain] = cert
 	}
 
-	// Load passthrough domain certs
-	for _, pt := range passthrough {
-		ptCertPath := filepath.Join(certsDir, pt.Domain+".pem")
-		ptKeyPath := filepath.Join(certsDir, pt.Domain+"-key.pem")
-
-		if _, err := os.Stat(ptCertPath); os.IsNotExist(err) {
-			logger.Warnf("Passthrough cert missing for *.%s (run: mkcert -cert-file certs/%s.pem -key-file certs/%s-key.pem \"*.%s\")",
-				pt.Domain, pt.Domain, pt.Domain, pt.Domain)
-			continue
-		}
-
-		ptCert, err := tls.LoadX509KeyPair(ptCertPath, ptKeyPath)
-		if err != nil {
-			logger.Errorf("Failed to load cert for *.%s: %v", pt.Domain, err)
-			continue
-		}
-		m.certs[pt.Domain] = ptCert
+	if _, ok := m.certs[baseDomain]; !ok {
+		logger.Errorf("No cert for the base domain *.%s (expected %s/%s.pem) — run: mkcert -cert-file %s/%s.pem -key-file %s/%s-key.pem \"*.%s\"",
+			baseDomain, certsDir, baseDomain, certsDir, baseDomain, certsDir, baseDomain, baseDomain)
 	}
 }
 
@@ -90,28 +107,18 @@ type RawCert struct {
 	Domain string
 }
 
-func (m *Manager) GetRawCerts(certsDir, baseDomain string, passthrough []provider.PassthroughDomain) []RawCert {
+func (m *Manager) GetRawCerts(certsDir, baseDomain string) []RawCert {
 	var certs []RawCert
-
-	certPath := filepath.Join(certsDir, baseDomain+".pem")
-	keyPath := filepath.Join(certsDir, baseDomain+"-key.pem")
-
-	if certData, err := os.ReadFile(certPath); err == nil {
-		if keyData, err := os.ReadFile(keyPath); err == nil {
-			certs = append(certs, RawCert{Cert: certData, Key: keyData, Domain: baseDomain})
+	for _, domain := range discoverDomains(certsDir) {
+		certData, err := os.ReadFile(filepath.Join(certsDir, domain+".pem"))
+		if err != nil {
+			continue
 		}
-	}
-
-	for _, pt := range passthrough {
-		ptCertPath := filepath.Join(certsDir, pt.Domain+".pem")
-		ptKeyPath := filepath.Join(certsDir, pt.Domain+"-key.pem")
-
-		if certData, err := os.ReadFile(ptCertPath); err == nil {
-			if keyData, err := os.ReadFile(ptKeyPath); err == nil {
-				certs = append(certs, RawCert{Cert: certData, Key: keyData, Domain: pt.Domain})
-			}
+		keyData, err := os.ReadFile(filepath.Join(certsDir, domain+"-key.pem"))
+		if err != nil {
+			continue
 		}
+		certs = append(certs, RawCert{Cert: certData, Key: keyData, Domain: domain})
 	}
-
 	return certs
 }

@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
+	"github.com/aylith-labs/pintle/internal/logger"
+	"github.com/aylith-labs/pintle/internal/provider"
 	"gopkg.in/yaml.v3"
 )
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 HTTPS_PORT="${LISTEN_PORT:-9443}"
 HTTP_PORT="${HTTP_PORT:-9080}"
-PF_ANCHOR="com.local-proxy"
+PF_ANCHOR="com.pintle"
 
 OS="$(uname -s)"
 

@@ -13,11 +13,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=ui-builder /app/ui/dist ./internal/api/ui/dist
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /local-proxy ./cmd/local-proxy
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /pintle ./cmd/pintle
 
 # Stage 3: Runtime
 FROM scratch
-COPY --from=go-builder /local-proxy /local-proxy
+COPY --from=go-builder /pintle /pintle
 COPY --from=go-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 EXPOSE 9443 9080
-ENTRYPOINT ["/local-proxy"]
+ENTRYPOINT ["/pintle"]

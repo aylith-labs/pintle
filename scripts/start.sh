@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Note: 'docker compose up -d' is the recommended way to run local-proxy."
+echo "Note: 'docker compose up -d' is the recommended way to run pintle."
 echo "This script is for host-native mode (without Docker)."
 echo ""
 
@@ -10,7 +10,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 HTTPS_PORT="${LISTEN_PORT:-9443}"
 HTTP_PORT="${HTTP_PORT:-9080}"
-PF_ANCHOR="com.local-proxy"
+PF_ANCHOR="com.pintle"
 
 OS="$(uname -s)"
 

@@ -9,18 +9,18 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/steven-pribilinskiy/local-proxy/internal/aggregator"
-	"github.com/steven-pribilinskiy/local-proxy/internal/api"
-	"github.com/steven-pribilinskiy/local-proxy/internal/config"
-	"github.com/steven-pribilinskiy/local-proxy/internal/logger"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider/docker"
-	"github.com/steven-pribilinskiy/local-proxy/internal/provider/file"
-	"github.com/steven-pribilinskiy/local-proxy/internal/proxy"
-	"github.com/steven-pribilinskiy/local-proxy/internal/router"
-	"github.com/steven-pribilinskiy/local-proxy/internal/server"
-	"github.com/steven-pribilinskiy/local-proxy/internal/stats"
-	tlsmgr "github.com/steven-pribilinskiy/local-proxy/internal/tls"
+	"github.com/aylith-labs/pintle/internal/aggregator"
+	"github.com/aylith-labs/pintle/internal/api"
+	"github.com/aylith-labs/pintle/internal/config"
+	"github.com/aylith-labs/pintle/internal/logger"
+	"github.com/aylith-labs/pintle/internal/provider"
+	"github.com/aylith-labs/pintle/internal/provider/docker"
+	"github.com/aylith-labs/pintle/internal/provider/file"
+	"github.com/aylith-labs/pintle/internal/proxy"
+	"github.com/aylith-labs/pintle/internal/router"
+	"github.com/aylith-labs/pintle/internal/server"
+	"github.com/aylith-labs/pintle/internal/stats"
+	tlsmgr "github.com/aylith-labs/pintle/internal/tls"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	logger.Info("local-proxy starting...")
+	logger.Info("pintle starting...")
 
 	// Core components
 	tlsManager := tlsmgr.NewManager()
@@ -66,7 +66,7 @@ func main() {
 	initialCfg := <-aggCh
 
 	// Load TLS certs (needs passthrough from file provider)
-	tlsManager.LoadCerts(cfg.CertsDir, cfg.BaseDomain, initialCfg.Passthrough)
+	tlsManager.LoadCerts(cfg.CertsDir, cfg.BaseDomain)
 
 	// Update router with initial routes
 	rtr.Update(initialCfg.Routes)
@@ -98,14 +98,14 @@ func main() {
 				return
 			case merged := <-aggCh:
 				rtr.Update(merged.Routes)
-				tlsManager.LoadCerts(cfg.CertsDir, cfg.BaseDomain, merged.Passthrough)
+				tlsManager.LoadCerts(cfg.CertsDir, cfg.BaseDomain)
 
 				tcpMu.Lock()
 				allTcpRoutes = merged.TcpRoutes
 				tcpMu.Unlock()
 
 				// Update TCP router certs
-				rawCerts := tlsManager.GetRawCerts(cfg.CertsDir, cfg.BaseDomain, merged.Passthrough)
+				rawCerts := tlsManager.GetRawCerts(cfg.CertsDir, cfg.BaseDomain)
 				var tcpCerts []server.TCPCert
 				for _, rc := range rawCerts {
 					tcpCerts = append(tcpCerts, server.TCPCert{
@@ -183,7 +183,8 @@ func main() {
 	// Start SNI router if needed
 	if needsSNI {
 		sniRouter := &server.SNIRouter{
-			Port: cfg.ListenPort,
+			Port:       cfg.ListenPort,
+			BaseDomain: cfg.BaseDomain,
 			LocalTarget: &net.TCPAddr{
 				IP:   net.ParseIP("127.0.0.1"),
 				Port: 9444,
@@ -195,7 +196,7 @@ func main() {
 	}
 
 	// Start initial TCP routers
-	rawCerts := tlsManager.GetRawCerts(cfg.CertsDir, cfg.BaseDomain, passthroughDomains)
+	rawCerts := tlsManager.GetRawCerts(cfg.CertsDir, cfg.BaseDomain)
 	var tcpCerts []server.TCPCert
 	for _, rc := range rawCerts {
 		tcpCerts = append(tcpCerts, server.TCPCert{
@@ -219,7 +220,7 @@ func main() {
 		logger.Info("No TCP routes discovered, skipping TCP routers")
 	}
 
-	logger.Infof("local-proxy ready on *.%s (dashboard: %s)", cfg.BaseDomain, cfg.DashboardHost)
+	logger.Infof("pintle ready on *.%s (dashboard: %s)", cfg.BaseDomain, cfg.DashboardHost)
 
 	// Wait for shutdown
 	<-ctx.Done()
