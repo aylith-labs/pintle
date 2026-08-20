@@ -51,6 +51,16 @@ default. Backends that build URLs from `r.Host` (e.g. Zitadel's Console
 not the upstream's bind address. Regression covered by
 `internal/proxy/proxy_host_test.go`.
 
+## Self-knowledge
+- `GET /api/self` — runtime truth: inDocker, container + compose project, routes file (with
+  `routesFileHost`, the path outside the container), certs loaded, network, label prefix,
+  restart command, and declared `expect:` hosts with a `routed` flag.
+- `pintle doctor` — the same from the CLI, and it works when pintle is down.
+- `docker-compose.yaml` sets `pid: host`, so `pgrep pintle` finds the containerised binary.
+  A PID hit is NOT evidence of a host-native run.
+- `CONSUMERS.md` lists every surface other repos bind to. Sweeps must cover BOTH
+  `~/projects/*` and `/mnt/c/Users/steve/projects`.
+
 ## Commands
 - **Production**: `docker compose up -d --build` (single container, embedded UI, restart: unless-stopped)
 - **Dev with HMR**: `make docker-dev` (adds Vite HMR container via compose profile)
