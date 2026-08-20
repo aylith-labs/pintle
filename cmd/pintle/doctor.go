@@ -36,6 +36,18 @@ func runDoctor() {
 		os.Exit(1)
 	}
 
+	// Prefer the paths as they exist OUTSIDE the container: a reader running doctor is
+	// on the host, and the in-container path resolves to nothing for them.
+	if self.RoutesFileHost != "" || self.CertsDirHost != "" {
+		fmt.Println("\nPaths on this host (as pintle sees them mounted)")
+		if self.RoutesFileHost != "" {
+			fmt.Printf("  routes file    %s\n", self.RoutesFileHost)
+		}
+		if self.CertsDirHost != "" {
+			fmt.Printf("  certs dir      %s\n", self.CertsDirHost)
+		}
+	}
+
 	fmt.Println("\nRunning")
 	fmt.Printf("  uptime         %ds\n", self.UptimeSec)
 	fmt.Printf("  in docker      %v\n", self.InDocker)
@@ -75,11 +87,13 @@ func runDoctor() {
 }
 
 type selfReport struct {
-	UptimeSec   int64    `json:"uptimeSec"`
-	InDocker    bool     `json:"inDocker"`
-	CertDomains []string `json:"certDomains"`
-	PidHostNote string   `json:"pidHostNote"`
-	Container   struct {
+	UptimeSec      int64    `json:"uptimeSec"`
+	RoutesFileHost string   `json:"routesFileHost"`
+	CertsDirHost   string   `json:"certsDirHost"`
+	InDocker       bool     `json:"inDocker"`
+	CertDomains    []string `json:"certDomains"`
+	PidHostNote    string   `json:"pidHostNote"`
+	Container      struct {
 		ContainerName  string `json:"containerName"`
 		ComposeProject string `json:"composeProject"`
 		WorkingDir     string `json:"workingDir"`
