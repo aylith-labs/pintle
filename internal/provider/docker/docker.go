@@ -2,18 +2,19 @@ package docker
 
 import (
 	"context"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/aylith-labs/pintle/internal/config"
+	"github.com/aylith-labs/pintle/internal/logger"
+	"github.com/aylith-labs/pintle/internal/provider"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/aylith-labs/pintle/internal/config"
-	"github.com/aylith-labs/pintle/internal/logger"
-	"github.com/aylith-labs/pintle/internal/provider"
 )
 
 type DockerProvider struct {
@@ -401,3 +402,48 @@ func (d *DockerProvider) watchEvents(ctx context.Context, cli *client.Client, co
 
 // Ensure DockerProvider doesn't actually use the events.Message
 var _ events.Message
+
+// SelfIdentity describes the container pintle is running in. Empty when host-native.
+type SelfIdentity struct {
+	ContainerName  string `json:"containerName,omitempty"`
+	ComposeProject string `json:"composeProject,omitempty"`
+	WorkingDir     string `json:"workingDir,omitempty"`
+	// Mounts maps a path inside the container to its source on the host. Without it a
+	// reader on the host is handed a path that exists only in here.
+	Mounts map[string]string `json:"mounts,omitempty"`
+}
+
+// Identify resolves pintle's own container from the Docker API. Inside a container the
+// hostname is the container id, which is what makes this possible; a lookup failure is
+// reported as an empty identity rather than an error, since it is informational.
+func (d *DockerProvider) Identify(ctx context.Context) SelfIdentity {
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		return SelfIdentity{}
+	}
+
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return SelfIdentity{}
+	}
+	defer cli.Close()
+
+	info, err := cli.ContainerInspect(ctx, hostname)
+	if err != nil {
+		return SelfIdentity{}
+	}
+
+	mounts := make(map[string]string, len(info.Mounts))
+	for _, m := range info.Mounts {
+		if m.Source != "" {
+			mounts[m.Destination] = m.Source
+		}
+	}
+
+	return SelfIdentity{
+		ContainerName:  strings.TrimPrefix(info.Name, "/"),
+		ComposeProject: info.Config.Labels["com.docker.compose.project"],
+		WorkingDir:     info.Config.Labels["com.docker.compose.project.working_dir"],
+		Mounts:         mounts,
+	}
+}

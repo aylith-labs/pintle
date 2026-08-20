@@ -122,3 +122,16 @@ func (m *Manager) GetRawCerts(certsDir, baseDomain string) []RawCert {
 	}
 	return certs
 }
+
+// LoadedDomains returns the domains with a certificate currently in memory.
+func (m *Manager) LoadedDomains() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	domains := make([]string, 0, len(m.certs))
+	for domain := range m.certs {
+		domains = append(domains, domain)
+	}
+	sort.Strings(domains)
+	return domains
+}

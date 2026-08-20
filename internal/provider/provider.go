@@ -27,11 +27,21 @@ type PassthroughDomain struct {
 	Target string `json:"target" yaml:"target"`
 }
 
+// ExpectedHost is a hostname this machine is supposed to serve. A host declared here
+// with no matching route is a gap worth naming: absence of a route means the service
+// behind it is down, not that it was never configured.
+type ExpectedHost struct {
+	Host    string `json:"host" yaml:"host"`
+	Why     string `json:"why,omitempty" yaml:"why"`
+	Project string `json:"project,omitempty" yaml:"project"`
+}
+
 type Message struct {
 	ProviderName string
 	Routes       []Route
 	TcpRoutes    []TcpRoute
 	Passthrough  []PassthroughDomain
+	Expected     []ExpectedHost
 }
 
 type Provider interface {

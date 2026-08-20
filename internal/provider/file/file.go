@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/aylith-labs/pintle/internal/logger"
 	"github.com/aylith-labs/pintle/internal/provider"
+	"github.com/fsnotify/fsnotify"
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,9 +30,10 @@ type staticTcpRouteConfig struct {
 }
 
 type routesFile struct {
-	Routes      []staticRouteConfig         `yaml:"routes"`
+	Routes      []staticRouteConfig          `yaml:"routes"`
 	Passthrough []provider.PassthroughDomain `yaml:"passthrough"`
-	TCP         []staticTcpRouteConfig      `yaml:"tcp"`
+	TCP         []staticTcpRouteConfig       `yaml:"tcp"`
+	Expect      []provider.ExpectedHost      `yaml:"expect"`
 }
 
 var portOnlyRegex = regexp.MustCompile(`^\d+$`)
@@ -149,6 +150,7 @@ func (f *FileProvider) loadFile() provider.Message {
 	}
 
 	msg.Passthrough = parsed.Passthrough
+	msg.Expected = parsed.Expect
 
 	for _, t := range parsed.TCP {
 		host, port := f.resolveTcpTarget(t.Target)
@@ -167,8 +169,8 @@ func (f *FileProvider) loadFile() provider.Message {
 func (f *FileProvider) Run(ctx context.Context, configCh chan<- provider.Message) error {
 	// Initial load
 	msg := f.loadFile()
-	logger.Infof("Loaded %d static route(s), %d TCP route(s), %d passthrough domain(s)",
-		len(msg.Routes), len(msg.TcpRoutes), len(msg.Passthrough))
+	logger.Infof("Loaded %d static route(s), %d TCP route(s), %d passthrough domain(s), %d expected host(s)",
+		len(msg.Routes), len(msg.TcpRoutes), len(msg.Passthrough), len(msg.Expected))
 	configCh <- msg
 
 	// Watch for changes

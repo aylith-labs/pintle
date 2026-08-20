@@ -273,6 +273,26 @@ incomplete as a public edge. Not yet implemented:
 Those are the roadmap, not the boundary — until they land, a public-facing deployment still wants
 Traefik or Caddy.
 
+## Knowing what pintle is, from outside
+
+`GET /api/self` reports what actually started, never a constant: whether it is in Docker,
+its container and compose project, the routes file in use **and its host-side path**, the
+certs loaded, the watched network, the label prefix, and the command to restart it.
+
+`pintle doctor` prints the same and still works when pintle is down — which is when the
+question gets asked. It also lists hosts declared under `expect:` that have no route, and
+exits non-zero when any is missing.
+
+```yaml
+expect:
+  - host: my-app.lvh.me
+    why: the nightly job posts here
+```
+
+A route only exists while the container behind it runs, so a host missing from the table
+means its service is down, not that it was never configured. See [CONSUMERS.md](CONSUMERS.md)
+for the surfaces other projects bind to.
+
 ## Docs
 
 - [Privileged Ports](docs/privileged-ports.md) — Why pintle uses iptables/pfctl and how other approaches compare

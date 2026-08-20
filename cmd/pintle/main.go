@@ -4,10 +4,12 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"os"
 	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/aylith-labs/pintle/internal/aggregator"
 	"github.com/aylith-labs/pintle/internal/api"
@@ -23,7 +25,16 @@ import (
 	tlsmgr "github.com/aylith-labs/pintle/internal/tls"
 )
 
+// version is set at build time via -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "doctor" {
+		runDoctor()
+		return
+	}
+
+	startedAt := time.Now()
 	cfg := config.Load()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -128,8 +139,29 @@ func main() {
 		}
 	}()
 
+	// Decide the listener topology before anything reports it, so the API describes
+	// what actually started rather than what the defaults would have been.
+	passthroughDomains := initialCfg.Passthrough
+	needsSNI := len(passthroughDomains) > 0
+
+	httpsPort := cfg.ListenPort
+	httpsHostname := "0.0.0.0"
+	if needsSNI {
+		httpsPort = 9444 // internal port behind the SNI router
+		httpsHostname = "127.0.0.1"
+	}
+
+	runtimeFacts := api.Runtime{
+		Version:    version,
+		StartedAt:  startedAt,
+		HTTPSPort:  httpsPort,
+		SNIEnabled: needsSNI,
+		SNIPort:    cfg.ListenPort,
+	}
+
 	// Build HTTP handler mux
-	apiHandler := api.NewHandler(rtr, statsCollector, dockerProv, cfg, getTcpRoutes, agg.GetCurrentPassthrough)
+	apiHandler := api.NewHandler(rtr, statsCollector, dockerProv, cfg, runtimeFacts,
+		tlsManager.LoadedDomains, getTcpRoutes, agg.GetCurrentPassthrough, agg.GetCurrentExpected)
 	dashboardHandler := api.NewDashboardHandler(cfg.ViteDevURL)
 	proxyHandler := proxy.NewHandler(rtr, statsCollector)
 
@@ -152,21 +184,6 @@ func main() {
 		// Regular proxy (httputil.ReverseProxy handles WebSocket upgrades natively)
 		proxyHandler.ServeHTTP(w, r)
 	})
-
-	// Determine if SNI router is needed
-	passthroughDomains := initialCfg.Passthrough
-	needsSNI := len(passthroughDomains) > 0
-
-	var httpsPort int
-	var httpsHostname string
-
-	if needsSNI {
-		httpsPort = 9444 // Internal port behind SNI router
-		httpsHostname = "127.0.0.1"
-	} else {
-		httpsPort = cfg.ListenPort
-		httpsHostname = "0.0.0.0"
-	}
 
 	// Start HTTPS server
 	if err := server.StartHTTPS(ctx, httpsPort, httpsHostname, tlsManager, mainHandler); err != nil {

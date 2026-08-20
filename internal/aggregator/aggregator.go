@@ -10,6 +10,7 @@ type Configuration struct {
 	Routes      []provider.Route
 	TcpRoutes   []provider.TcpRoute
 	Passthrough []provider.PassthroughDomain
+	Expected    []provider.ExpectedHost
 }
 
 type Aggregator struct {
@@ -56,6 +57,9 @@ func (a *Aggregator) merge() Configuration {
 		if len(msg.Passthrough) > 0 {
 			cfg.Passthrough = msg.Passthrough
 		}
+		if len(msg.Expected) > 0 {
+			cfg.Expected = msg.Expected
+		}
 	}
 
 	return cfg
@@ -69,6 +73,19 @@ func (a *Aggregator) GetCurrentPassthrough() []provider.PassthroughDomain {
 	for _, msg := range a.configs {
 		if len(msg.Passthrough) > 0 {
 			return msg.Passthrough
+		}
+	}
+	return nil
+}
+
+// GetCurrentExpected returns the latest declared expectations without waiting for updates.
+func (a *Aggregator) GetCurrentExpected() []provider.ExpectedHost {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	for _, msg := range a.configs {
+		if len(msg.Expected) > 0 {
+			return msg.Expected
 		}
 	}
 	return nil
