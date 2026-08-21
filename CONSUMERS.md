@@ -14,7 +14,7 @@ looks complete:
 
 ```
 ~/projects/**                                   # WSL
-/mnt/c/Users/<user>/projects                     # Windows
+/mnt/c/Users/<user>/projects                    # Windows, via WSL interop
 ```
 
 The rename that produced this file swept only the first and reported itself complete,
