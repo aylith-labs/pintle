@@ -14,7 +14,7 @@ looks complete:
 
 ```
 ~/projects/{personal,cloudbeds,aylith-labs}     # WSL
-/mnt/c/Users/steve/projects                     # Windows
+/mnt/c/Users/<user>/projects                    # Windows, via WSL interop
 ```
 
 The rename that produced this file swept only the first and reported itself complete,
@@ -48,7 +48,7 @@ distinction cost a debugging session, so it is declarable:
 expect:
   - host: tabby-claude-status.lvh.me
     why: every Claude Code hook on this machine POSTs here; when it is down the hook fails silently
-    project: /mnt/c/Users/steve/projects/tabby-claude-status/web
+    project: /mnt/c/Users/<user>/projects/tabby-claude-status/web
 ```
 
 Declared hosts appear in `/api/self` and `pintle doctor` with a `routed` flag, and `doctor`

@@ -59,7 +59,7 @@ not the upstream's bind address. Regression covered by
 - `docker-compose.yaml` sets `pid: host`, so `pgrep pintle` finds the containerised binary.
   A PID hit is NOT evidence of a host-native run.
 - `CONSUMERS.md` lists every surface other repos bind to. Sweeps must cover BOTH
-  `~/projects/*` and `/mnt/c/Users/steve/projects`.
+  `~/projects/*` and the Windows-side tree under `/mnt/c/Users/<user>/projects`.
 
 ## Commands
 - **Production**: `docker compose up -d --build` (single container, embedded UI, restart: unless-stopped)
