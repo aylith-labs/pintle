@@ -18,6 +18,14 @@ routes: []
   #   target: http://192.168.1.50:3000
   #   path: /api
   #   strip: true
+  #
+  # One service under several names is ONE route. `hosts` is unioned with `host`, so a
+  # cert per base domain (certs/<domain>.pem) is all that is needed to serve them all:
+  # - host: app.lvh.me
+  #   hosts:
+  #     - app.localtest.me
+  #     - app.localhost
+  #   target: 5174
 
 tcp: []
   # - host: db.lvh.me

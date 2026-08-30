@@ -91,10 +91,17 @@ func (m *Manager) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, 
 		}
 	}
 
-	// Fallback: return first available cert
-	for _, cert := range m.certs {
-		c := cert
-		return &c, nil
+	// Fallback: an unknown SNI still gets a cert, because a name-mismatch error names the problem
+	// and a failed handshake does not. Pick it by sorted domain rather than by map iteration --
+	// Go randomises that, so the error a client saw changed between handshakes.
+	if len(m.certs) > 0 {
+		domains := make([]string, 0, len(m.certs))
+		for domain := range m.certs {
+			domains = append(domains, domain)
+		}
+		sort.Strings(domains)
+		cert := m.certs[domains[0]]
+		return &cert, nil
 	}
 
 	return nil, fmt.Errorf("no certificate found for %s", serverName)

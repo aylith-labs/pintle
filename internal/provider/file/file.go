@@ -17,10 +17,29 @@ import (
 )
 
 type staticRouteConfig struct {
+	// Host and Hosts are both accepted and unioned: one service reachable under several names
+	// (stith.lvh.me, stith.localhost, ...) is one route, not one copy per name.
 	Host   string      `yaml:"host"`
+	Hosts  []string    `yaml:"hosts"`
 	Target interface{} `yaml:"target"` // string or int
 	Path   string      `yaml:"path"`
 	Strip  bool        `yaml:"strip"`
+}
+
+// hostnames returns every name this route answers to, deduplicated and in declaration order.
+// Blank entries are dropped so a stray "- " in the YAML cannot register an empty hostname.
+func (r staticRouteConfig) hostnames() []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, hostname := range append([]string{r.Host}, r.Hosts...) {
+		hostname = strings.TrimSpace(hostname)
+		if hostname == "" || seen[hostname] {
+			continue
+		}
+		seen[hostname] = true
+		out = append(out, hostname)
+	}
+	return out
 }
 
 type staticTcpRouteConfig struct {
@@ -140,13 +159,16 @@ func (f *FileProvider) loadFile() provider.Message {
 		if path == "" {
 			path = "/"
 		}
-		msg.Routes = append(msg.Routes, provider.Route{
-			Hostname:  r.Host,
-			Path:      path,
-			Target:    f.resolveTarget(r.Target),
-			StripPath: r.Strip,
-			Source:    "static",
-		})
+		target := f.resolveTarget(r.Target)
+		for _, hostname := range r.hostnames() {
+			msg.Routes = append(msg.Routes, provider.Route{
+				Hostname:  hostname,
+				Path:      path,
+				Target:    target,
+				StripPath: r.Strip,
+				Source:    "static",
+			})
+		}
 	}
 
 	msg.Passthrough = parsed.Passthrough
