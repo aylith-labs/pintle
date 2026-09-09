@@ -19,6 +19,10 @@ the labels they already carry. SNI passthrough forwards any domain it should not
 - Static routes in `routes.yaml` (equivalent to Traefik's file provider)
 - WebSocket proxying (Vite HMR)
 - TCP service routing (Redis, PostgreSQL, MySQL) with TLS termination
+- `--static-only` binds HTTP/HTTPS to one literal loopback IP and runs the file provider
+  alone — no Docker discovery, TCP listeners or SNI router. Incompatible flags and route
+  updates are rejected before any listener starts; a rejected reload keeps the last
+  accepted routes. Intended for the Windows binary beside loopback-only upstreams.
 
 ## Docker Labels
 ```yaml

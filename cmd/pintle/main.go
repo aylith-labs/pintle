@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -35,8 +36,17 @@ func main() {
 	}
 
 	startedAt := time.Now()
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err == nil {
+		err = run(cfg, startedAt)
+	}
+	if err != nil {
+		logger.Errorf("pintle: %v", err)
+		os.Exit(1)
+	}
+}
 
+func run(cfg *config.Config, startedAt time.Time) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -65,7 +75,10 @@ func main() {
 	}
 
 	// TCP router (started dynamically based on config)
-	tcpRouter := server.NewTCPRouter(nil, getTcpRoutes)
+	var tcpRouter *server.TCPRouter
+	if !cfg.StaticOnly {
+		tcpRouter = server.NewTCPRouter(nil, getTcpRoutes)
+	}
 
 	// Start file provider
 	fileProv := file.New(cfg.RoutesFile, cfg.HostAddress)
@@ -73,6 +86,9 @@ func main() {
 
 	// Wait for initial file provider config (contains passthrough domains)
 	initialMsg := <-configCh
+	if err := cfg.ValidateMessage(initialMsg); err != nil {
+		return err
+	}
 	agg.Update(initialMsg)
 	initialCfg := <-aggCh
 
@@ -88,7 +104,11 @@ func main() {
 	tcpMu.Unlock()
 
 	// Start Docker provider
-	go dockerProv.Run(ctx, configCh)
+	if !cfg.StaticOnly {
+		go dockerProv.Run(ctx, configCh)
+	} else {
+		logger.Info("Static-only loopback mode: Docker discovery, TCP routes and SNI passthrough disabled")
+	}
 
 	// Configuration watcher: aggregates provider messages -> updates router + TLS
 	go func() {
@@ -97,6 +117,10 @@ func main() {
 			case <-ctx.Done():
 				return
 			case msg := <-configCh:
+				if err := cfg.ValidateMessage(msg); err != nil {
+					logger.Errorf("Rejected route update (keeping last accepted routes): %v", err)
+					continue
+				}
 				agg.Update(msg)
 			}
 		}
@@ -110,6 +134,9 @@ func main() {
 			case merged := <-aggCh:
 				rtr.Update(merged.Routes)
 				tlsManager.LoadCerts(cfg.CertsDir, cfg.BaseDomain)
+				if cfg.StaticOnly {
+					continue
+				}
 
 				tcpMu.Lock()
 				allTcpRoutes = merged.TcpRoutes
@@ -142,13 +169,15 @@ func main() {
 	// Decide the listener topology before anything reports it, so the API describes
 	// what actually started rather than what the defaults would have been.
 	passthroughDomains := initialCfg.Passthrough
-	needsSNI := len(passthroughDomains) > 0
+	needsSNI := !cfg.StaticOnly && len(passthroughDomains) > 0
 
 	httpsPort := cfg.ListenPort
 	httpsHostname := "0.0.0.0"
 	if needsSNI {
 		httpsPort = 9444 // internal port behind the SNI router
 		httpsHostname = "127.0.0.1"
+	} else if cfg.StaticOnly {
+		httpsHostname = cfg.LoopbackAddress
 	}
 
 	runtimeFacts := api.Runtime{
@@ -187,14 +216,18 @@ func main() {
 
 	// Start HTTPS server
 	if err := server.StartHTTPS(ctx, httpsPort, httpsHostname, tlsManager, mainHandler); err != nil {
-		logger.Errorf("Failed to start HTTPS server: %v", err)
-		return
+		return fmt.Errorf("failed to start HTTPS server: %w", err)
 	}
 
 	// Start HTTP redirect
-	if err := server.StartHTTPRedirect(ctx, cfg.HTTPPort); err != nil {
-		logger.Errorf("Failed to start HTTP redirect: %v", err)
-		return
+	var httpErr error
+	if cfg.StaticOnly {
+		httpErr = server.StartLoopbackHTTPRedirect(ctx, cfg.HTTPPort, cfg.LoopbackAddress, cfg.ListenPort)
+	} else {
+		httpErr = server.StartHTTPRedirect(ctx, cfg.HTTPPort)
+	}
+	if httpErr != nil {
+		return fmt.Errorf("failed to start HTTP redirect: %w", httpErr)
 	}
 
 	// Start SNI router if needed
@@ -213,28 +246,30 @@ func main() {
 	}
 
 	// Start initial TCP routers
-	rawCerts := tlsManager.GetRawCerts(cfg.CertsDir, cfg.BaseDomain)
-	var tcpCerts []server.TCPCert
-	for _, rc := range rawCerts {
-		tcpCerts = append(tcpCerts, server.TCPCert{
-			Cert:   rc.Cert,
-			Key:    rc.Key,
-			Domain: rc.Domain,
-		})
-	}
-	tcpRouter.UpdateCerts(tcpCerts)
-
-	ports := make(map[int]bool)
-	for _, r := range initialCfg.TcpRoutes {
-		ports[r.ListenPort] = true
-	}
-	for port := range ports {
-		if err := tcpRouter.StartPort(ctx, port); err != nil {
-			logger.Errorf("Failed to start TCP router on :%d: %v", port, err)
+	if !cfg.StaticOnly {
+		rawCerts := tlsManager.GetRawCerts(cfg.CertsDir, cfg.BaseDomain)
+		var tcpCerts []server.TCPCert
+		for _, rc := range rawCerts {
+			tcpCerts = append(tcpCerts, server.TCPCert{
+				Cert:   rc.Cert,
+				Key:    rc.Key,
+				Domain: rc.Domain,
+			})
 		}
-	}
-	if len(ports) == 0 {
-		logger.Info("No TCP routes discovered, skipping TCP routers")
+		tcpRouter.UpdateCerts(tcpCerts)
+
+		ports := make(map[int]bool)
+		for _, r := range initialCfg.TcpRoutes {
+			ports[r.ListenPort] = true
+		}
+		for port := range ports {
+			if err := tcpRouter.StartPort(ctx, port); err != nil {
+				logger.Errorf("Failed to start TCP router on :%d: %v", port, err)
+			}
+		}
+		if len(ports) == 0 {
+			logger.Info("No TCP routes discovered, skipping TCP routers")
+		}
 	}
 
 	logger.Infof("pintle ready on *.%s (dashboard: %s)", cfg.BaseDomain, cfg.DashboardHost)
@@ -242,6 +277,7 @@ func main() {
 	// Wait for shutdown
 	<-ctx.Done()
 	logger.Info("Shutting down...")
+	return nil
 }
 
 func buildSNITargets(passthrough []provider.PassthroughDomain, dockerProv *docker.DockerProvider, cfg *config.Config) []server.SNIForwardTarget {

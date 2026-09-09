@@ -131,6 +131,35 @@ make build
 ./scripts/stop.sh
 ```
 
+### Native Windows loopback (opt-in)
+
+Use the Windows binary on the same Windows host as loopback-only upstream apps:
+
+```powershell
+.\pintle.exe --static-only --loopback-address 127.0.0.1 --listen-port 443 --http-port 80 --routes-file C:\path\to\windows-routes.yaml --certs-dir C:\path\to\existing\certs
+```
+
+This mode binds HTTP and HTTPS to one literal loopback IP (default `127.0.0.1`;
+`::1` is also supported). It never starts Docker discovery, TCP service listeners,
+or the SNI passthrough router. It rejects `--port-redirect`, `VITE_DEV_URL`,
+non-loopback bind addresses, invalid/equal ports, unreadable or malformed route
+files, and nonempty `tcp` or `passthrough` entries before starting listeners.
+Use a dedicated routes file containing only the intended HTTP routes. The existing
+file watcher remains active: incompatible updates are logged and rejected as a
+whole, preserving the last accepted routes until a valid update arrives.
+
+Port-only upstream targets resolve to `127.0.0.1` in this mode, independently of
+`HOST_GATEWAY_IP`. Explicit URL targets retain normal route behavior; use each
+verified Windows upstream's loopback address and port. Running the Linux binary
+in WSL does not make Windows loopback upstreams reachable through the NAT gateway.
+The HTTP redirect uses the configured HTTPS port and preserves escaped paths and
+queries. Existing default ports remain 9443/9080 unless explicitly overridden.
+
+Run the binary directly using the existing certificate directory. App startup,
+host/origin configuration and any automatic startup arrangement are separate.
+The embedded dashboard's architecture diagram still illustrates the legacy
+Docker/SNI layout; it is not evidence of active listeners in this mode.
+
 ### Comparison
 
 | | Docker | Host-native |
@@ -328,6 +357,8 @@ Embedded React UI at `https://pintle.lvh.me`:
 --base-domain     Base domain for routing (default: lvh.me, env: BASE_DOMAIN)
 --listen-port     HTTPS listen port (default: 9443, env: LISTEN_PORT)
 --http-port       HTTP redirect port (default: 9080, env: HTTP_PORT)
+--static-only     File routes and loopback HTTP/HTTPS only (default: off)
+--loopback-address Literal loopback IP for both listeners (requires --static-only)
 --certs-dir       Path to certificates (default: ./certs, env: CERTS_DIR)
 --routes-file     Path to routes.yaml (default: ./routes.yaml, env: ROUTES_FILE)
 --port-redirect   Add iptables/pfctl rules on start, remove on exit

@@ -145,12 +145,14 @@ func (f *FileProvider) loadFile() provider.Message {
 	data, err := os.ReadFile(f.filePath)
 	if err != nil {
 		logger.Errorf("Failed to load routes file: %s: %v", f.filePath, err)
+		msg.Err = err
 		return msg
 	}
 
 	var parsed routesFile
 	if err := yaml.Unmarshal(data, &parsed); err != nil {
 		logger.Errorf("Failed to parse routes file: %s: %v", f.filePath, err)
+		msg.Err = err
 		return msg
 	}
 

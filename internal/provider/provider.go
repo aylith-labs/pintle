@@ -38,6 +38,7 @@ type ExpectedHost struct {
 
 type Message struct {
 	ProviderName string
+	Err          error
 	Routes       []Route
 	TcpRoutes    []TcpRoute
 	Passthrough  []PassthroughDomain

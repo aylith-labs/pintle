@@ -155,11 +155,18 @@ func (h *Handler) handleTopology(w http.ResponseWriter, r *http.Request) {
 		traefikIPPtr = &traefikIP
 	}
 
+	// Static-only binds cfg.HTTPPort directly on loopback, so that IS the external port.
+	// Docker and iptables modes map 80 onto it.
+	redirectPort := 80
+	if h.cfg.StaticOnly {
+		redirectPort = h.cfg.HTTPPort
+	}
+
 	topo := map[string]interface{}{
 		"mode":         mode,
 		"sniRouter":    sniTopology(h.rt),
 		"httpsServer":  map[string]int{"port": h.rt.HTTPSPort},
-		"httpRedirect": map[string]int{"port": h.cfg.HTTPPort, "redirectPort": 80},
+		"httpRedirect": map[string]int{"port": h.cfg.HTTPPort, "redirectPort": redirectPort},
 		"traefik": map[string]interface{}{
 			"ip":      traefikIPPtr,
 			"port":    traefikPort,
@@ -266,6 +273,11 @@ type Self struct {
 	// and a PID hit is not evidence that pintle is running host-native.
 	PidHostNote string `json:"pidHostNote,omitempty"`
 
+	// StaticOnly reports that Docker discovery, TCP listeners and the SNI router are not
+	// running, so dockerNetwork and labelDialects below describe capability, not activity.
+	StaticOnly      bool   `json:"staticOnly"`
+	LoopbackAddress string `json:"loopbackAddress,omitempty"`
+
 	RoutesFile string `json:"routesFile"`
 	// RoutesFileHost is the path on the HOST that RoutesFile is mounted from. A reader
 	// outside the container needs this one; RoutesFile alone points at nothing there.
@@ -296,16 +308,18 @@ func (h *Handler) handleSelf(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	self := Self{
-		Version:       h.rt.Version,
-		UptimeSec:     int64(time.Since(h.rt.StartedAt).Seconds()),
-		InDocker:      h.cfg.InDocker,
-		RoutesFile:    h.cfg.RoutesFile,
-		CertsDir:      h.cfg.CertsDir,
-		BaseDomain:    h.cfg.BaseDomain,
-		DashboardHost: h.cfg.DashboardHost,
-		DockerNetwork: h.cfg.DockerNetwork,
-		LabelPrefix:   "pintle",
-		LabelDialects: []string{"pintle.*", "traefik.*", "caddy*"},
+		Version:         h.rt.Version,
+		UptimeSec:       int64(time.Since(h.rt.StartedAt).Seconds()),
+		InDocker:        h.cfg.InDocker,
+		StaticOnly:      h.cfg.StaticOnly,
+		LoopbackAddress: h.cfg.LoopbackAddress,
+		RoutesFile:      h.cfg.RoutesFile,
+		CertsDir:        h.cfg.CertsDir,
+		BaseDomain:      h.cfg.BaseDomain,
+		DashboardHost:   h.cfg.DashboardHost,
+		DockerNetwork:   h.cfg.DockerNetwork,
+		LabelPrefix:     "pintle",
+		LabelDialects:   []string{"pintle.*", "traefik.*", "caddy*"},
 	}
 
 	if h.certDomains != nil {

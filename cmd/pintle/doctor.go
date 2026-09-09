@@ -15,7 +15,11 @@ import (
 // whoever is debugging — including when the proxy is down, which is exactly when the
 // question gets asked and when the running instance cannot answer it.
 func runDoctor() {
-	cfg := config.Load()
+	cfg, err := config.LoadArgs(os.Args[2:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "pintle: %v\n", err)
+		os.Exit(1)
+	}
 
 	fmt.Printf("pintle %s\n\n", version)
 	fmt.Println("Configuration (resolved locally, true whether or not pintle is running)")
@@ -23,8 +27,12 @@ func runDoctor() {
 	fmt.Printf("  certs dir      %s\n", cfg.CertsDir)
 	fmt.Printf("  base domain    %s\n", cfg.BaseDomain)
 	fmt.Printf("  dashboard      https://%s\n", cfg.DashboardHost)
-	fmt.Printf("  docker network %s\n", cfg.DockerNetwork)
-	fmt.Printf("  label dialects pintle.* (native), traefik.*, caddy*\n")
+	if cfg.StaticOnly {
+		fmt.Printf("  static-only    HTTP/HTTPS on %s only; no Docker discovery, TCP or SNI\n", cfg.LoopbackAddress)
+	} else {
+		fmt.Printf("  docker network %s\n", cfg.DockerNetwork)
+		fmt.Printf("  label dialects pintle.* (native), traefik.*, caddy*\n")
+	}
 
 	self, err := fetchSelf(cfg.DashboardHost)
 	if err != nil {
@@ -51,6 +59,9 @@ func runDoctor() {
 	fmt.Println("\nRunning")
 	fmt.Printf("  uptime         %ds\n", self.UptimeSec)
 	fmt.Printf("  in docker      %v\n", self.InDocker)
+	if self.StaticOnly {
+		fmt.Printf("  static-only    bound to %s\n", self.LoopbackAddress)
+	}
 	if self.Container.ContainerName != "" {
 		fmt.Printf("  container      %s (compose project %s)\n", self.Container.ContainerName, self.Container.ComposeProject)
 		fmt.Printf("  checkout       %s\n", self.Container.WorkingDir)
@@ -87,13 +98,15 @@ func runDoctor() {
 }
 
 type selfReport struct {
-	UptimeSec      int64    `json:"uptimeSec"`
-	RoutesFileHost string   `json:"routesFileHost"`
-	CertsDirHost   string   `json:"certsDirHost"`
-	InDocker       bool     `json:"inDocker"`
-	CertDomains    []string `json:"certDomains"`
-	PidHostNote    string   `json:"pidHostNote"`
-	Container      struct {
+	UptimeSec       int64    `json:"uptimeSec"`
+	RoutesFileHost  string   `json:"routesFileHost"`
+	CertsDirHost    string   `json:"certsDirHost"`
+	InDocker        bool     `json:"inDocker"`
+	StaticOnly      bool     `json:"staticOnly"`
+	LoopbackAddress string   `json:"loopbackAddress"`
+	CertDomains     []string `json:"certDomains"`
+	PidHostNote     string   `json:"pidHostNote"`
+	Container       struct {
 		ContainerName  string `json:"containerName"`
 		ComposeProject string `json:"composeProject"`
 		WorkingDir     string `json:"workingDir"`

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/aylith-labs/pintle/internal/logger"
 	tlsmgr "github.com/aylith-labs/pintle/internal/tls"
@@ -21,7 +23,7 @@ func StartHTTPS(ctx context.Context, port int, hostname string, tlsManager *tlsm
 		NextProtos: []string{"h2", "http/1.1"},
 	}
 
-	addr := fmt.Sprintf("%s:%d", hostname, port)
+	addr := net.JoinHostPort(hostname, strconv.Itoa(port))
 	server := &http.Server{
 		Addr:      addr,
 		Handler:   handler,
@@ -39,12 +41,7 @@ func StartHTTPS(ctx context.Context, port int, hostname string, tlsManager *tlsm
 		return fmt.Errorf("HTTPS listen: %w", err)
 	}
 
-	logger.Infof("HTTPS server on :%d%s", port, func() string {
-		if hostname == "127.0.0.1" {
-			return " (internal, behind SNI router)"
-		}
-		return ""
-	}())
+	logger.Infof("HTTPS server on %s", addr)
 
 	go func() {
 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
