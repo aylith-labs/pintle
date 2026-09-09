@@ -40,8 +40,9 @@ func StartHTTPRedirect(ctx context.Context, port int) error {
 	return nil
 }
 
-// StartLoopbackHTTPRedirect binds synchronously so address conflicts fail
-// startup. The legacy redirect above retains its port-mapping behavior.
+// StartLoopbackHTTPRedirect binds synchronously, so an address conflict fails startup,
+// and redirects to an explicit HTTPS port. StartHTTPRedirect above binds every interface
+// and omits the port, because Docker or iptables maps 443 for it.
 func StartLoopbackHTTPRedirect(ctx context.Context, port int, hostname string, httpsPort int) error {
 	ip := net.ParseIP(hostname)
 	if ip == nil || !ip.IsLoopback() {

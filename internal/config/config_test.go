@@ -25,7 +25,7 @@ func TestStaticOnlyConfiguration(t *testing.T) {
 	}
 	cfg, err := testLoad(t)
 	if err != nil || cfg.StaticOnly || cfg.LoopbackAddress != "" || cfg.ListenPort != 9443 || cfg.HTTPPort != 9080 {
-		t.Fatalf("legacy defaults changed: %+v, %v", cfg, err)
+		t.Fatalf("default-mode config changed: %+v, %v", cfg, err)
 	}
 	t.Setenv("HOST_GATEWAY_IP", "192.0.2.1")
 	cfg, err = testLoad(t, "--static-only", "--listen-port=443", "--http-port=80")
@@ -38,7 +38,7 @@ func TestStaticOnlyConfiguration(t *testing.T) {
 		}
 	}
 	for _, address := range []string{"0.0.0.0", "::", "192.168.1.10", "localhost", "lvh.me", "127.1", "127.0.0.1:443", "[::1]", "::1%lo"} {
-		if _, err := testLoad(t, "--static-only", "--loopback-address="+address); err == nil || !strings.Contains(err.Error(), "literal loopback IP") {
+		if _, err := testLoad(t, "--static-only", "--loopback-address="+address); err == nil || !strings.Contains(err.Error(), "loopback IP") {
 			t.Errorf("unsafe/ambiguous address %q: %v", address, err)
 		}
 	}
@@ -106,6 +106,6 @@ func TestStaticOnlyDynamicBoundary(t *testing.T) {
 		t.Fatalf("valid removal failed: %v", err)
 	}
 	if err := (&Config{}).ValidateMessage(provider.Message{ProviderName: "docker", TcpRoutes: []provider.TcpRoute{{ListenPort: 5432}}}); err != nil {
-		t.Fatalf("legacy dynamic mode restricted: %v", err)
+		t.Fatalf("dynamic mode restricted: %v", err)
 	}
 }

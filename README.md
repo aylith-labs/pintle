@@ -139,8 +139,8 @@ Use the Windows binary on the same Windows host as loopback-only upstream apps:
 .\pintle.exe --static-only --loopback-address 127.0.0.1 --listen-port 443 --http-port 80 --routes-file C:\path\to\windows-routes.yaml --certs-dir C:\path\to\existing\certs
 ```
 
-This mode binds HTTP and HTTPS to one literal loopback IP (default `127.0.0.1`;
-`::1` is also supported). It never starts Docker discovery, TCP service listeners,
+This mode binds HTTP and HTTPS to one loopback IP — anything in `127.0.0.0/8` or
+`::1`, defaulting to `127.0.0.1`. It never starts Docker discovery, TCP service listeners,
 or the SNI passthrough router. It rejects `--port-redirect`, `VITE_DEV_URL`,
 non-loopback bind addresses, invalid/equal ports, unreadable or malformed route
 files, and nonempty `tcp` or `passthrough` entries before starting listeners.
@@ -157,17 +157,17 @@ queries. Existing default ports remain 9443/9080 unless explicitly overridden.
 
 Run the binary directly using the existing certificate directory. App startup,
 host/origin configuration and any automatic startup arrangement are separate.
-The embedded dashboard's architecture diagram still illustrates the legacy
-Docker/SNI layout; it is not evidence of active listeners in this mode.
+The embedded dashboard's architecture diagram always draws the Docker/SNI layout;
+it is not evidence of active listeners in this mode.
 
 ### Comparison
 
-| | Docker | Host-native |
-|--|--------|-------------|
-| Port 443/80 | Docker handles binding | iptables/pfctl (requires sudo) |
-| Auto-start | `restart: unless-stopped` | Manual or systemd |
-| Code changes | `docker compose up -d --build` | `make build && ./pintle` |
-| Static routes | `host.docker.internal` (auto) | `localhost` (auto) |
+| | Docker | Host-native | Static-only |
+|--|--------|-------------|-------------|
+| Port 443/80 | Docker handles binding | iptables/pfctl (requires sudo) | Bound directly via `--listen-port`/`--http-port` |
+| Auto-start | `restart: unless-stopped` | Manual or systemd | Manual |
+| Code changes | `docker compose up -d --build` | `make build && ./pintle` | `make build && ./pintle --static-only …` |
+| Static routes | `host.docker.internal` (auto) | `localhost` (auto) | `127.0.0.1` (auto) |
 
 ### Development
 

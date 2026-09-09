@@ -133,7 +133,7 @@ func (c *Config) validate() error {
 	}
 	ip := net.ParseIP(c.LoopbackAddress)
 	if ip == nil || !ip.IsLoopback() {
-		return fmt.Errorf("--static-only requires --loopback-address to be a literal loopback IP (127.0.0.1 or ::1)")
+		return fmt.Errorf("--static-only requires --loopback-address to be a loopback IP (127.0.0.0/8 or ::1)")
 	}
 	if c.PortRedirect {
 		return fmt.Errorf("--static-only cannot be combined with --port-redirect")

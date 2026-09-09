@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -335,6 +336,12 @@ func (h *Handler) handleSelf(w http.ResponseWriter, r *http.Request) {
 		if dir := self.Container.WorkingDir; dir != "" {
 			self.RestartCommand = "cd " + dir + " && docker compose up -d --build"
 		}
+	} else if h.cfg.StaticOnly {
+		// Every static-only flag has to be restated: the mode is entirely argument-driven,
+		// and a restart missing one of them comes back up in a different mode.
+		self.RestartCommand = fmt.Sprintf(
+			"./pintle --static-only --loopback-address %s --listen-port %d --http-port %d --routes-file %s --certs-dir %s",
+			h.cfg.LoopbackAddress, h.cfg.ListenPort, h.cfg.HTTPPort, h.cfg.RoutesFile, h.cfg.CertsDir)
 	} else {
 		self.RestartCommand = "./pintle --port-redirect"
 	}
