@@ -221,6 +221,41 @@ func (f *FileProvider) loadFile() provider.Message {
 	return msg
 }
 
+// Check reads a routes file and validates the destinations the providers would
+// publish. It does not open a listener or contact an upstream.
+func (f *FileProvider) Check() (provider.Message, error) {
+	msg := f.loadFile()
+	if msg.Err != nil {
+		return msg, msg.Err
+	}
+	for _, route := range msg.Routes {
+		if route.Hostname == "" {
+			return msg, fmt.Errorf("HTTP route has no host")
+		}
+		u, err := url.Parse(route.Target)
+		if err != nil || u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
+			return msg, fmt.Errorf("invalid HTTP target %q for %s", route.Target, route.Hostname)
+		}
+		if port := u.Port(); port != "" {
+			n, err := strconv.Atoi(port)
+			if err != nil || n < 1 || n > 65535 {
+				return msg, fmt.Errorf("invalid HTTP target port %q for %s", port, route.Hostname)
+			}
+		}
+	}
+	for _, route := range msg.TcpRoutes {
+		if route.Hostname == "" || route.TargetHost == "" || route.TargetPort < 1 || route.TargetPort > 65535 || route.ListenPort < 1 || route.ListenPort > 65535 {
+			return msg, fmt.Errorf("invalid TCP destination or listen port for %q", route.Hostname)
+		}
+	}
+	for _, pt := range msg.Passthrough {
+		if pt.Domain == "" || pt.Target != "traefik" {
+			return msg, fmt.Errorf("invalid passthrough destination %q for %q: only traefik is supported", pt.Target, pt.Domain)
+		}
+	}
+	return msg, nil
+}
+
 func (f *FileProvider) Run(ctx context.Context, configCh chan<- provider.Message) error {
 	// Initial load
 	msg := f.loadFile()

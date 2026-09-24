@@ -1,6 +1,6 @@
 # pintle
 
-The pin a gate turns on. A Go HTTPS reverse proxy that replaces Traefik and Caddy — it reads **their** labels and **their** config files, so services keep the labels they already have and the proxy underneath them changes. Single static binary (~9 MB) with an embedded React dashboard. Routes domains via SNI with HTTP/2, auto-discovers Docker containers through three label dialects, terminates TLS for database connections, and passes any domain it does not own through to another proxy untouched.
+The pin a gate turns on. A Go HTTPS reverse proxy for local development. It reads Pintle, Traefik and caddy-docker-proxy Docker labels, plus Pintle's own `routes.yaml`; migration still requires checking each route and middleware. The binary embeds a React dashboard. It can route domains via SNI, discover Docker containers, terminate TLS for configured TCP services, and pass configured domains through to another proxy.
 
 ## Architecture
 
@@ -280,14 +280,14 @@ labels:
 
 Entrypoint names map to default listen ports: `redis` → 6379, `postgres` → 5432, `mysql` → 3306. Connect with a TLS-capable client using the SNI hostname, e.g. `psql "host=db.lvh.me sslmode=require"`. In Docker mode, `docker-compose.yaml` maps these listen ports to high host ports (`15432`→5432, `16379`→6379, `13306`→3306) so they don't collide with databases already running on the host — connect to the high port with the SNI hostname.
 
-## Replacing Traefik or Caddy
+## Replacing Traefik or Caddy for local development
 
-pintle is a **drop-in** for both, not a companion to either. It parses `traefik.*` and `caddy*`
-container labels natively, so the migration is a proxy swap and not a re-labelling job:
+Pintle parses supported `traefik.*` and `caddy*` container labels. Check each service's
+rules and middleware before switching its local proxy:
 
 - **pintle takes over ports 443/80** — stop the existing proxy's port bindings first
-- **No re-labelling** — every `traefik.*` and `caddy*` label your services already carry keeps working
-- **Nothing to migrate up front** — point it at the same Docker network and the route table rebuilds itself
+- **Supported label rules** — existing labels can provide routes where Pintle's parsers recognize them
+- **Docker discovery** — point it at the same Docker network and inspect the resulting route table
 - **Passthrough for anything it should not own** — configured domains are forwarded at the TCP
   level, SNI read but never decrypted, so another proxy can keep its own certificates on the same
   port during a staged cutover
@@ -354,6 +354,7 @@ Embedded React UI at `https://pintle.lvh.me`:
 | `docker compose up -d` | Docker daemon mode (recommended) |
 | `docker compose up -d --build` | Rebuild and restart |
 | `./pintle --port-redirect` | Host-native with port redirection |
+| `./pintle check --routes-file /path/to/routes.yaml` | Offline file destination validation; no listeners or upstream requests |
 
 ## CLI Flags
 
@@ -371,6 +372,8 @@ Embedded React UI at `https://pintle.lvh.me`:
 ```
 
 CLI flags override environment variables. Environment variables override defaults.
+
+Run `pintle check` before starting or reloading a file route configuration. It accepts the same flags as the server, including `--static-only`, and reports invalid HTTP URL schemes/hosts/ports, TCP destinations/listen ports, and unsupported passthrough targets. A passing check validates file configuration only; it does not prove an upstream is reachable, certificates are usable, or the application behind a route has any particular identity. Docker-discovered labels are outside this check.
 
 Environment-only (no CLI flag): `DOCKER_NETWORK` (Docker network to watch, default `traefik`), `VITE_DEV_URL` (dashboard dev-proxy target for HMR), `HOST_GATEWAY_IP` (override host-gateway auto-detection).
 

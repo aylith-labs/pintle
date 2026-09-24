@@ -35,6 +35,13 @@ func main() {
 		runDoctor()
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "check" {
+		if err := runCheck(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "pintle check: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	startedAt := time.Now()
 	cfg, err := config.Load()

@@ -7,6 +7,7 @@ features:
   - Docker route discovery from Pintle, Traefik and Caddy labels
   - File-defined routes, SNI passthrough and TLS termination for local services
   - Embedded dashboard and runtime self-description for local route inspection
+  - Offline routes file destination check before starting the proxy
 targetUser: Developers running several local services behind HTTPS domains
 websiteUrl: https://pintle.aylith.com/
 onboarding:
@@ -18,6 +19,7 @@ onboarding:
   limitations:
     - Host-native port redirection requires administrator privileges
     - Static-only mode serves loopback HTTP routes without Docker discovery or TCP routing
+    - The routes file check validates destination syntax only, not upstream reachability or certificates
 ---
 
 ## A local proxy that reads existing labels
