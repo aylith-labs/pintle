@@ -373,7 +373,7 @@ Embedded React UI at `https://pintle.lvh.me`:
 
 CLI flags override environment variables. Environment variables override defaults.
 
-Run `pintle check` before starting or reloading a file route configuration. It accepts the same flags as the server, including `--static-only`, and reports invalid HTTP URL schemes/hosts/ports, TCP destinations/listen ports, and unsupported passthrough targets. A passing check validates file configuration only; it does not prove an upstream is reachable, certificates are usable, or the application behind a route has any particular identity. Docker-discovered labels are outside this check.
+Run `pintle check` before starting or reloading a file route configuration. It accepts the same flags as the server, including `--static-only`, and reports invalid HTTP URL schemes/hosts/ports, TCP destinations/listen ports, and unsupported passthrough targets. A passing check validates those destinations and static-only constraints; it does not prove an upstream is reachable, certificates are usable, or the application behind a route has any particular identity. Docker-discovered labels are outside this check.
 
 Environment-only (no CLI flag): `DOCKER_NETWORK` (Docker network to watch, default `traefik`), `VITE_DEV_URL` (dashboard dev-proxy target for HMR), `HOST_GATEWAY_IP` (override host-gateway auto-detection).
 
