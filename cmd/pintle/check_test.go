@@ -12,9 +12,11 @@ import (
 
 func TestCheckRoutesCLI(t *testing.T) {
 	bin := filepath.Join(t.TempDir(), "pintle")
-	build := exec.Command("go", "build", "-o", bin, ".")
+	buildCtx, cancelBuild := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancelBuild()
+	build := exec.CommandContext(buildCtx, "go", "build", "-o", bin, ".")
 	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build CLI: %v: %s", err, output)
+		t.Fatalf("build CLI (timeout=%v): %v: %s", buildCtx.Err(), err, output)
 	}
 
 	for _, tc := range []struct {
