@@ -139,6 +139,11 @@ func (f *FileProvider) resolveTcpTarget(target interface{}) (string, int) {
 }
 
 func (f *FileProvider) loadFile() provider.Message {
+	msg, _ := f.loadFileParsed()
+	return msg
+}
+
+func (f *FileProvider) loadFileParsed() (provider.Message, routesFile) {
 	msg := provider.Message{
 		ProviderName: "file",
 	}
@@ -147,7 +152,7 @@ func (f *FileProvider) loadFile() provider.Message {
 	if err != nil {
 		logger.Errorf("Failed to load routes file: %s: %v", f.filePath, err)
 		msg.Err = err
-		return msg
+		return msg, routesFile{}
 	}
 
 	if len(bytes.TrimSpace(data)) == 0 {
@@ -184,7 +189,7 @@ func (f *FileProvider) loadFile() provider.Message {
 	if err := document.Decode(&parsed); err != nil {
 		logger.Errorf("Failed to parse routes file: %s: %v", f.filePath, err)
 		msg.Err = err
-		return msg
+		return msg, routesFile{}
 	}
 
 	for _, r := range parsed.Routes {
@@ -218,20 +223,22 @@ func (f *FileProvider) loadFile() provider.Message {
 		})
 	}
 
-	return msg
+	return msg, parsed
 }
 
 // Check reads a routes file and validates the destinations the providers would
 // publish. It does not open a listener or contact an upstream.
 func (f *FileProvider) Check() (provider.Message, error) {
-	msg := f.loadFile()
+	msg, parsed := f.loadFileParsed()
 	if msg.Err != nil {
 		return msg, msg.Err
 	}
-	for _, route := range msg.Routes {
-		if route.Hostname == "" {
+	for _, route := range parsed.Routes {
+		if len(route.hostnames()) == 0 {
 			return msg, fmt.Errorf("HTTP route has no host")
 		}
+	}
+	for _, route := range msg.Routes {
 		u, err := url.Parse(route.Target)
 		if err != nil || u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
 			return msg, fmt.Errorf("invalid HTTP target %q for %s", route.Target, route.Hostname)

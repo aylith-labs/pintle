@@ -227,9 +227,9 @@ routes:
   - host: remote-app.lvh.me
     target: http://192.168.1.50:3000      # full URL: used as-is
   - host: win-app.lvh.me
-    target: host.docker.internal:3000     # Windows-side service (WSL → Windows gateway)
+    target: http://host.docker.internal:3000 # Windows-side service (WSL → Windows gateway)
   - host: wsl-app.lvh.me
-    target: host.wsl.internal:3000        # WSL2 Linux-side service (no gateway rewrite)
+    target: http://host.wsl.internal:3000    # WSL2 Linux-side service (no gateway rewrite)
 ```
 
 Port-only targets resolve to `localhost` (host-native) or `host.docker.internal` (Docker) automatically. On WSL, `host.docker.internal` is rewritten to the WSL → Windows gateway; use the `host.wsl.internal` sentinel to reach a service on the WSL Linux host instead.
@@ -322,9 +322,9 @@ expect:
     why: the nightly job posts here
 ```
 
-A route only exists while the container behind it runs, so a host missing from the table
-means its service is down, not that it was never configured. See [CONSUMERS.md](CONSUMERS.md)
-for the surfaces other projects bind to.
+A label-discovered route disappears when its container stops. A missing route can also mean
+the host was never configured or its file route failed to load; inspect the route source before
+attributing the cause. See [CONSUMERS.md](CONSUMERS.md) for the surfaces other projects bind to.
 
 ## Docs
 

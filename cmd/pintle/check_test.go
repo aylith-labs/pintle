@@ -25,6 +25,7 @@ func TestCheckRoutesCLI(t *testing.T) {
 	}{
 		{"valid destinations", "routes:\n  - host: app.lvh.me\n    target: 5174\n  - host: api.lvh.me\n    target: http://127.0.0.1:3000\n", "2 HTTP route(s)", true, true},
 		{"invalid destination", "routes:\n  - host: app.lvh.me\n    target: localhost:3000\n", "invalid HTTP target", false, true},
+		{"missing route host", "routes:\n  - target: 5174\n", "HTTP route has no host", false, true},
 		{"invalid HTTP port", "routes:\n  - host: app.lvh.me\n    target: http://127.0.0.1:70000\n", "invalid HTTP target port", false, true},
 		{"valid TCP and passthrough", "tcp:\n  - host: db.lvh.me\n    target: 5432\n    listen: 15432\npassthrough:\n  - domain: old.test\n    target: traefik\n", "1 TCP route(s), 1 passthrough domain(s)", true, false},
 		{"invalid TCP destination", "tcp:\n  - host: db.lvh.me\n    target: localhost:bad\n    listen: 15432\n", "invalid TCP destination", false, false},
