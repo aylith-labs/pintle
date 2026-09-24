@@ -288,16 +288,16 @@ rules and middleware before switching its local proxy:
 - **pintle takes over ports 443/80** — stop the existing proxy's port bindings first
 - **Supported label rules** — existing labels can provide routes where Pintle's parsers recognize them
 - **Docker discovery** — point it at the same Docker network and inspect the resulting route table
-- **Passthrough for anything it should not own** — configured domains are forwarded at the TCP
-  level, SNI read but never decrypted, so another proxy can keep its own certificates on the same
+- **Traefik passthrough for configured domains** — configured domains are forwarded at the TCP
+  level, SNI read but never decrypted, so Traefik can keep its own certificates on the same
   port during a staged cutover
 
 Rolling back is symmetrical: `docker compose down`, then start the old proxy again.
 
 ### Current limits
 
-pintle terminates TLS with mkcert certificates, which makes it complete for local development and
-incomplete as a public edge. Not yet implemented:
+pintle terminates TLS with mkcert certificates and is intended for local development.
+Not yet implemented:
 
 - Automatic Let's Encrypt / ACME certificates
 - Load balancing across replicas, health checks, circuit breaking
@@ -312,9 +312,9 @@ Traefik or Caddy.
 its container and compose project, the routes file in use **and its host-side path**, the
 certs loaded, the watched network, the label prefix, and the command to restart it.
 
-`pintle doctor` prints the same and still works when pintle is down — which is when the
-question gets asked. It also lists hosts declared under `expect:` that have no route, and
-exits non-zero when any is missing.
+`pintle doctor` prints locally resolved configuration even when pintle is down; it exits
+non-zero if it cannot reach `/api/self`. When it can reach that endpoint, it also lists
+hosts declared under `expect:` that have no route and exits non-zero if any is missing.
 
 ```yaml
 expect:
