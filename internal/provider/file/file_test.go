@@ -109,3 +109,24 @@ func TestLoadFileFansOutHosts(t *testing.T) {
 		t.Errorf("total routes = %d, want 4 (3 fanned out + 1 solo)", len(msg.Routes))
 	}
 }
+
+func TestBlankReloadDocumentIsNotAnExplicitClear(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "routes.yaml")
+	provider := New(path, "127.0.0.1")
+	for _, content := range []string{"", " \n\t", "routes:\n", "routes: null\n", "{}\n", "# editor comment\n", "tcp:\n"} {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if provider.loadFile().Err == nil {
+			t.Fatal("blank editor state accepted as clear")
+		}
+	}
+	if err := os.WriteFile(path, []byte("routes: []\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got := provider.loadFile()
+	if got.Err != nil || len(got.Routes) != 0 {
+		t.Fatal("explicit empty routes must remain supported")
+	}
+}

@@ -24,17 +24,17 @@ export type RuntimeMode = 'docker' | 'host-native';
 
 export type ProxyTopology = {
 	mode: RuntimeMode;
-	sniRouter: { port: number; listenPort: number };
+	sniRouter: { port: number; listenPort: number } | null;
 	httpsServer: { port: number };
 	httpRedirect: { port: number; redirectPort: number };
 	traefik: {
 		ip: string | null;
 		port: number;
-		domains: string[];
+		domains: string[] | null;
 	};
-	routes: ProxyRoute[];
-	containers: ProxyContainer[];
-	staticRoutes: ProxyStaticRoute[];
+	routes: ProxyRoute[] | null;
+	containers: ProxyContainer[] | null;
+	staticRoutes: ProxyStaticRoute[] | null;
 };
 
 export type RouteStats = {

@@ -234,6 +234,8 @@ routes:
 
 Port-only targets resolve to `localhost` (host-native) or `host.docker.internal` (Docker) automatically. On WSL, `host.docker.internal` is rewritten to the WSL → Windows gateway; use the `host.wsl.internal` sentinel to reach a service on the WSL Linux host instead.
 
+Empty or null routes documents are rejected during reload so an editor’s intermediate state cannot clear working routes. Use an explicit `routes: []` collection to deliberately clear routes.
+
 ### Passthrough domains
 
 Domains that should be forwarded to another proxy (e.g., Traefik) without TLS termination are configured in `routes.yaml`:
@@ -243,6 +245,8 @@ passthrough:
   - domain: example-local.com
     target: traefik              # auto-discovers Traefik container IP
 ```
+
+An explicit `host:port` target, such as `127.0.0.1:8443`, forwards directly to that configured endpoint. An empty target or `traefik` retains Docker discovery; unsupported names are not substituted with another proxy.
 
 Traffic for `*.example-local.com` is passed through at the TCP level — pintle reads the SNI hostname from the TLS ClientHello but does not decrypt the traffic. The target proxy's container IP is auto-discovered on the shared Docker network.
 

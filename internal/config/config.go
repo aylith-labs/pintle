@@ -151,11 +151,11 @@ func (c *Config) validate() error {
 // reload. Reject the entire incompatible update so the last accepted routes
 // remain active and no dynamic message can enable additional listeners.
 func (c *Config) ValidateMessage(msg provider.Message) error {
+	if msg.Err != nil {
+		return fmt.Errorf("provider %s update: %w", msg.ProviderName, msg.Err)
+	}
 	if !c.StaticOnly {
 		return nil
-	}
-	if msg.Err != nil {
-		return fmt.Errorf("--static-only routes file: %w", msg.Err)
 	}
 	if msg.ProviderName != "file" {
 		return fmt.Errorf("--static-only accepts only the file provider")

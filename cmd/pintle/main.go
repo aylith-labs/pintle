@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -290,18 +291,37 @@ func buildSNITargets(passthrough []provider.PassthroughDomain, dockerProv *docke
 				return strings.HasSuffix(hostname, "."+domain) || hostname == domain
 			},
 			Resolve: func() *net.TCPAddr {
-				ip, port := dockerProv.GetTraefikTarget()
-				if ip == "" {
-					return nil
-				}
-				return &net.TCPAddr{
-					IP:   net.ParseIP(ip),
-					Port: port,
-				}
+				return resolvePassthroughTarget(pt.Target, dockerProv.GetTraefikTarget)
 			},
-			Label: "*." + domain + " -> " + pt.Target + " container",
+			Label: "*." + domain + " -> " + pt.Target,
 		})
 	}
 
 	return targets
+}
+
+// The empty/default target keeps existing dynamic Traefik discovery. Explicit
+// host:port targets are operator-owned config, not a guessed container alias.
+func resolvePassthroughTarget(target string, discovered func() (string, int)) *net.TCPAddr {
+	if target == "" || target == "traefik" {
+		ip, port := discovered()
+		address := net.ParseIP(ip)
+		if address == nil || port < 1 || port > 65535 {
+			return nil
+		}
+		return &net.TCPAddr{IP: address, Port: port}
+	}
+	host, rawPort, err := net.SplitHostPort(target)
+	if err != nil || host == "" {
+		return nil
+	}
+	port, err := strconv.Atoi(rawPort)
+	if err != nil || port < 1 || port > 65535 {
+		return nil
+	}
+	address, err := net.ResolveTCPAddr("tcp", target)
+	if err != nil {
+		return nil
+	}
+	return address
 }

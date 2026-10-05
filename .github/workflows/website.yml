@@ -1,0 +1,106 @@
+name: Verify and publish Pintle homepage
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish verified prefix homepage and package
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: pintle-website
+  cancel-in-progress: false
+jobs:
+  verify:
+    outputs:
+      base: ${{ steps.target.outputs.base }}
+      url: ${{ steps.target.outputs.url }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.0'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - name: Build genuine embedded dashboard and proxy
+        run: |
+          set -euo pipefail
+          cd ui
+          bun install --frozen-lockfile
+          bun run build
+          cd ..
+          mkdir -p internal/api/ui
+          cp -a ui/dist internal/api/ui/dist
+          go test ./...
+          go vet ./...
+          CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=$GITHUB_SHA" -o /tmp/pintle-linux-x64 ./cmd/pintle
+      - name: Select exact current Pages target
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/pages" > /tmp/pintle-pages.json
+          python3 - <<'PYCODE'
+          import json,os
+          x=json.load(open('/tmp/pintle-pages.json'))
+          if x.get('build_type')!='workflow': raise SystemExit('Unexpected Pages build mode')
+          cname=x.get('cname')
+          if not cname:
+              base='/pintle'; expected='https://aylith-labs.github.io/pintle/'
+          elif cname=='pintle.aylith.com':
+              base=''; expected='https://pintle.aylith.com/'
+          else: raise SystemExit('Unexpected Pages custom domain')
+          allowed_urls=[expected] if base else ['http://pintle.aylith.com/','https://pintle.aylith.com/']
+          if x.get('html_url') not in allowed_urls: raise SystemExit('Unexpected Pages URL')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('base='+base+'\nurl='+expected+'\n')
+          PYCODE
+      - run: python3 website/build.py --binary /tmp/pintle-linux-x64 --base "${{ steps.target.outputs.base }}" --out /tmp/pintle-public-site
+      - name: Verify actual acquired proxy and finite public targets
+        run: |
+          python3 website/check-public.py /tmp/pintle-public-site
+          python3 website/check-acquired.py /tmp/pintle-public-site/downloads/pintle-linux-x64.tar.gz
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: /tmp/pintle-public-site
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Recheck exact verified Pages target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_URL: ${{ needs.verify.outputs.url }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/pages" > /tmp/pintle-pages.json
+          python3 - <<'PY'
+          import json,os
+          x=json.load(open('/tmp/pintle-pages.json'))
+          expected=os.environ['EXPECTED_URL']
+          cname='pintle.aylith.com' if expected=='https://pintle.aylith.com/' else None
+          allowed_urls=[expected] if cname is None else ['http://pintle.aylith.com/','https://pintle.aylith.com/']
+          if expected not in ['https://pintle.aylith.com/','https://aylith-labs.github.io/pintle/'] or x.get('cname')!=cname or x.get('build_type')!='workflow' or x.get('html_url') not in allowed_urls:
+              raise SystemExit('Unexpected Pages target; no publication')
+          PY
+      - uses: actions/deploy-pages@v5
+        id: deploy

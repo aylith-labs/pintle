@@ -29,7 +29,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 export function StatsBar({ topology, stats }: StatsBarProps) {
-	const totalRoutes = topology?.routes.length ?? 0;
+	const totalRoutes = topology?.routes?.length ?? 0;
 	const totalRequests = stats?.totalRequests ?? 0;
 	const uptime = stats?.uptime ?? 0;
 	const mode = topology?.mode;

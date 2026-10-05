@@ -1,6 +1,7 @@
 package file
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -149,8 +150,38 @@ func (f *FileProvider) loadFile() provider.Message {
 		return msg
 	}
 
+	if len(bytes.TrimSpace(data)) == 0 {
+		msg.Err = fmt.Errorf("routes document is empty; use routes: [] to explicitly clear routes")
+		return msg
+	}
+
+	var document yaml.Node
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		msg.Err = err
+		return msg
+	}
+	if len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
+		msg.Err = fmt.Errorf("routes document requires an explicit collection")
+		return msg
+	}
+	mapping := document.Content[0]
+	explicitCollection := false
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		key, value := mapping.Content[i].Value, mapping.Content[i+1]
+		if key == "routes" || key == "tcp" || key == "passthrough" || key == "expect" {
+			if value.Kind != yaml.SequenceNode {
+				msg.Err = fmt.Errorf("%s must be an explicit sequence; use [] to clear it", key)
+				return msg
+			}
+			explicitCollection = true
+		}
+	}
+	if !explicitCollection {
+		msg.Err = fmt.Errorf("routes document requires routes, tcp, passthrough or expect; use routes: [] to clear routes")
+		return msg
+	}
 	var parsed routesFile
-	if err := yaml.Unmarshal(data, &parsed); err != nil {
+	if err := document.Decode(&parsed); err != nil {
 		logger.Errorf("Failed to parse routes file: %s: %v", f.filePath, err)
 		msg.Err = err
 		return msg

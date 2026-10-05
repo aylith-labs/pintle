@@ -109,3 +109,15 @@ func TestStaticOnlyDynamicBoundary(t *testing.T) {
 		t.Fatalf("dynamic mode restricted: %v", err)
 	}
 }
+
+func TestProviderErrorRejectedBeforeAnyModeAggregatesIt(t *testing.T) {
+	for _, static := range []bool{false, true} {
+		c := Config{StaticOnly: static}
+		if c.ValidateMessage(provider.Message{ProviderName: "file", Err: errors.New("editor transient blank")}) == nil {
+			t.Fatalf("provider error accepted static=%v", static)
+		}
+		if c.ValidateMessage(provider.Message{ProviderName: "file"}) != nil {
+			t.Fatalf("explicit clear rejected static=%v", static)
+		}
+	}
+}

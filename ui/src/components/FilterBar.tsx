@@ -1,39 +1,11 @@
 import type { ActivityFilters, DurationFilter, MethodFilter, StatusFilter, TimeRange } from '../types';
+import { FilterSelect } from './FilterSelect';
 
 type FilterBarProps = {
 	filters: ActivityFilters;
 	onFiltersChange: (filters: ActivityFilters) => void;
 	hosts: string[];
 };
-
-function FilterSelect({
-	label,
-	value,
-	options,
-	onChange,
-}: {
-	label: string;
-	value: string;
-	options: string[];
-	onChange: (value: string) => void;
-}) {
-	return (
-		<label className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-			{label}
-			<select
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				className="bg-gray-50 dark:bg-zinc-800 border border-gray-200/60 dark:border-zinc-700 rounded px-2 py-1 text-xs font-mono text-gray-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-indigo-500/50"
-			>
-				{options.map((opt) => (
-					<option key={opt} value={opt}>
-						{opt === 'ALL' ? 'All' : opt}
-					</option>
-				))}
-			</select>
-		</label>
-	);
-}
 
 export function FilterBar({ filters, onFiltersChange, hosts }: FilterBarProps) {
 	function update<K extends keyof ActivityFilters>(key: K, value: ActivityFilters[K]) {

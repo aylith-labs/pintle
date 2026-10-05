@@ -74,7 +74,12 @@ export function useFlowLayout(
 			id: 'browser',
 			type: 'infra',
 			position: { x: COL[0], y: ROW1 },
-			data: { label: 'Browser', sublabel: 'HTTPS', port: 443, icon: 'globe' },
+			data: {
+				label: 'Browser',
+				sublabel: 'HTTPS',
+				port: topology.sniRouter?.listenPort ?? topology.httpsServer.port,
+				icon: 'globe',
+			},
 			draggable: true,
 		});
 
@@ -83,24 +88,25 @@ export function useFlowLayout(
 			id: 'http-client',
 			type: 'infra',
 			position: { x: COL[0], y: ROW2 },
-			data: { label: 'Browser', sublabel: 'HTTP', port: 80, icon: 'globe' },
+			data: { label: 'Browser', sublabel: 'HTTP', port: topology.httpRedirect.port, icon: 'globe' },
 			draggable: true,
 		});
 
-		// Col 1: SNI Router
-		nodes.push({
-			id: 'sni-router',
-			type: 'infra',
-			position: { x: COL[1], y: ROW1 },
-			data: {
-				label: 'SNI Router',
-				sublabel: 'TLS routing',
-				port: topology.sniRouter.port,
-				externalPort: topology.sniRouter.listenPort,
-				icon: 'shield',
-			},
-			draggable: true,
-		});
+		// Col 1: SNI Router (absent when HTTPS is served directly)
+		if (topology.sniRouter)
+			nodes.push({
+				id: 'sni-router',
+				type: 'infra',
+				position: { x: COL[1], y: ROW1 },
+				data: {
+					label: 'SNI Router',
+					sublabel: 'TLS routing',
+					port: topology.sniRouter.port,
+					externalPort: topology.sniRouter.listenPort,
+					icon: 'shield',
+				},
+				draggable: true,
+			});
 
 		// Col 1: HTTP Redirect
 		nodes.push({
@@ -131,22 +137,23 @@ export function useFlowLayout(
 			draggable: true,
 		});
 
-		// Col 2: Traefik
-		nodes.push({
-			id: 'traefik',
-			type: 'traefik',
-			position: { x: COL[2], y: ROW2 },
-			data: {
-				ip: topology.traefik.ip,
-				port: topology.traefik.port,
-				domains: topology.traefik.domains,
-			},
-			draggable: true,
-		});
+		// Show a discovered or configured passthrough proxy only when relevant.
+		if (topology.sniRouter || topology.traefik.ip)
+			nodes.push({
+				id: 'traefik',
+				type: 'traefik',
+				position: { x: COL[2], y: ROW2 },
+				data: {
+					ip: topology.traefik.ip,
+					port: topology.traefik.port,
+					domains: topology.traefik.domains ?? [],
+				},
+				draggable: true,
+			});
 
 		// Service nodes (one per unique hostname), grouped/filtered when there are many
 		const uniqueRoutes = new Map<string, ProxyRoute>();
-		for (const r of topology.routes) {
+		for (const r of topology.routes ?? []) {
 			if (!uniqueRoutes.has(r.hostname)) {
 				uniqueRoutes.set(r.hostname, r);
 			}
@@ -269,33 +276,35 @@ export function useFlowLayout(
 		edges.push({
 			id: 'e-browser-sni',
 			source: 'browser',
-			target: 'sni-router',
+			target: topology.sniRouter ? 'sni-router' : 'bun-https',
 			animated: true,
 			style: { stroke: '#6366f1', strokeWidth: 1.5 },
 			markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
 		});
 
-		edges.push({
-			id: 'e-sni-bun',
-			source: 'sni-router',
-			target: 'bun-https',
-			animated: true,
-			label: '*.lvh.me',
-			style: { stroke: '#6366f1', strokeWidth: 1.5 },
-			markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
-			...edgeLabelProps,
-		});
+		if (topology.sniRouter)
+			edges.push({
+				id: 'e-sni-bun',
+				source: 'sni-router',
+				target: 'bun-https',
+				animated: true,
+				label: '*.lvh.me',
+				style: { stroke: '#6366f1', strokeWidth: 1.5 },
+				markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
+				...edgeLabelProps,
+			});
 
-		edges.push({
-			id: 'e-sni-traefik',
-			source: 'sni-router',
-			target: 'traefik',
-			animated: true,
-			label: topology.traefik.domains?.[0] ?? 'passthrough',
-			style: { stroke: '#f97316', strokeWidth: 1.5 },
-			markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316' },
-			...edgeLabelProps,
-		});
+		if (topology.sniRouter)
+			edges.push({
+				id: 'e-sni-traefik',
+				source: 'sni-router',
+				target: 'traefik',
+				animated: true,
+				label: topology.traefik.domains?.[0] ?? 'passthrough',
+				style: { stroke: '#f97316', strokeWidth: 1.5 },
+				markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316' },
+				...edgeLabelProps,
+			});
 
 		edges.push({
 			id: 'e-http-redirect',
