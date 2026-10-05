@@ -71,6 +71,12 @@ jobs:
         run: |
           python3 website/check-public.py /tmp/pintle-public-site
           python3 website/check-acquired.py /tmp/pintle-public-site/downloads/pintle-linux-x64.tar.gz
+      - name: Verify actual Docker discovery with acquired binary on isolated runner
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pintle-docker-acquired
+          tar -xzf /tmp/pintle-public-site/downloads/pintle-linux-x64.tar.gz -C /tmp/pintle-docker-acquired
+          python3 website/check-docker.py /tmp/pintle-docker-acquired/pintle-linux-x64/pintle
       - uses: actions/upload-pages-artifact@v4
         with:
           path: /tmp/pintle-public-site
