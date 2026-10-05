@@ -8,10 +8,10 @@ features:
   - File-defined routes, SNI passthrough and TLS termination for local services
   - Embedded dashboard and runtime self-description for local route inspection
 targetUser: Developers running several local services behind HTTPS domains
-websiteUrl: https://aylith-labs.github.io/pintle/
+websiteUrl: https://pintle.aylith.com/
 onboarding:
   access: public-source
-  url: https://aylith-labs.github.io/pintle/home/#install
+  url: https://pintle.aylith.com/home/#install
   prerequisites:
     - Local TLS certificates from mkcert and route configuration
     - Linux x64 for the public binary, or Docker/source build for another supported setup
@@ -24,4 +24,4 @@ onboarding:
 
 Pintle routes local HTTPS domains to development services. Its source accepts Pintle, Traefik and Caddy label formats, reads static route files, and can pass an SNI domain through to another proxy. The embedded dashboard and `GET /api/self` describe the running local configuration.
 
-The [public homepage and Linux download](https://aylith-labs.github.io/pintle/home/#install) provide the binary, checksum and full setup guide. Extracting the archive starts no service and does not install a certificate authority. The [source setup guide](https://github.com/aylith-labs/pintle#setup) also covers other-platform builds and Docker use. The optional static-only mode serves loopback HTTP routes and omits Docker discovery, TCP listeners and SNI passthrough.
+The [public homepage and Linux download](https://pintle.aylith.com/home/#install) provide the binary, checksum and full setup guide. Extracting the archive starts no service and does not install a certificate authority. The [source setup guide](https://github.com/aylith-labs/pintle#setup) also covers other-platform builds and Docker use. The optional static-only mode serves loopback HTTP routes and omits Docker discovery, TCP listeners and SNI passthrough.
