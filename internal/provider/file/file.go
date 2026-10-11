@@ -157,17 +157,17 @@ func (f *FileProvider) loadFileParsed() (provider.Message, routesFile) {
 
 	if len(bytes.TrimSpace(data)) == 0 {
 		msg.Err = fmt.Errorf("routes document is empty; use routes: [] to explicitly clear routes")
-		return msg
+		return msg, routesFile{}
 	}
 
 	var document yaml.Node
 	if err := yaml.Unmarshal(data, &document); err != nil {
 		msg.Err = err
-		return msg
+		return msg, routesFile{}
 	}
 	if len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
 		msg.Err = fmt.Errorf("routes document requires an explicit collection")
-		return msg
+		return msg, routesFile{}
 	}
 	mapping := document.Content[0]
 	explicitCollection := false
@@ -176,14 +176,14 @@ func (f *FileProvider) loadFileParsed() (provider.Message, routesFile) {
 		if key == "routes" || key == "tcp" || key == "passthrough" || key == "expect" {
 			if value.Kind != yaml.SequenceNode {
 				msg.Err = fmt.Errorf("%s must be an explicit sequence; use [] to clear it", key)
-				return msg
+				return msg, routesFile{}
 			}
 			explicitCollection = true
 		}
 	}
 	if !explicitCollection {
 		msg.Err = fmt.Errorf("routes document requires routes, tcp, passthrough or expect; use routes: [] to clear routes")
-		return msg
+		return msg, routesFile{}
 	}
 	var parsed routesFile
 	if err := document.Decode(&parsed); err != nil {
@@ -256,11 +256,25 @@ func (f *FileProvider) Check() (provider.Message, error) {
 		}
 	}
 	for _, pt := range msg.Passthrough {
-		if pt.Domain == "" || pt.Target != "traefik" {
-			return msg, fmt.Errorf("invalid passthrough destination %q for %q: only traefik is supported", pt.Target, pt.Domain)
+		if pt.Domain == "" || !validPassthroughTarget(pt.Target) {
+			return msg, fmt.Errorf("invalid passthrough destination %q for %q: use traefik or host:port", pt.Target, pt.Domain)
 		}
 	}
 	return msg, nil
+}
+
+// validPassthroughTarget mirrors the runtime resolver without DNS lookups: an
+// empty target or traefik uses discovery, otherwise an explicit host:port.
+func validPassthroughTarget(target string) bool {
+	if target == "" || target == "traefik" {
+		return true
+	}
+	host, rawPort, err := net.SplitHostPort(target)
+	if err != nil || host == "" {
+		return false
+	}
+	port, err := strconv.Atoi(rawPort)
+	return err == nil && port >= 1 && port <= 65535
 }
 
 func (f *FileProvider) Run(ctx context.Context, configCh chan<- provider.Message) error {

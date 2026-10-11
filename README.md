@@ -288,8 +288,8 @@ rules and middleware before switching its local proxy:
 - **pintle takes over ports 443/80** — stop the existing proxy's port bindings first
 - **Supported label rules** — existing labels can provide routes where Pintle's parsers recognize them
 - **Docker discovery** — point it at the same Docker network and inspect the resulting route table
-- **Traefik passthrough for configured domains** — configured domains are forwarded at the TCP
-  level, SNI read but never decrypted, so Traefik can keep its own certificates on the same
+- **Passthrough for configured domains** — configured domains are forwarded at the TCP
+  level (to Traefik or an explicit `host:port`), SNI read but never decrypted, so that proxy keeps its own certificates on the same
   port during a staged cutover
 
 Rolling back is symmetrical: `docker compose down`, then start the old proxy again.
@@ -373,7 +373,7 @@ Embedded React UI at `https://pintle.lvh.me`:
 
 CLI flags override environment variables. Environment variables override defaults.
 
-Run `pintle check` before starting or reloading a file route configuration. It accepts the same flags as the server, including `--static-only`, and reports invalid HTTP URL schemes/hosts/ports, TCP destinations/listen ports, and unsupported passthrough targets. A passing check validates those destinations and static-only constraints; it does not prove an upstream is reachable, certificates are usable, or the application behind a route has any particular identity. Docker-discovered labels are outside this check.
+Run `pintle check` before starting or reloading a file route configuration. It accepts the same flags as the server, including `--static-only`, and reports invalid HTTP URL schemes/hosts/ports, TCP destinations/listen ports, and passthrough targets other than `traefik` or `host:port`. A passing check validates those destinations and static-only constraints; it does not prove an upstream is reachable, certificates are usable, or the application behind a route has any particular identity. Docker-discovered labels are outside this check.
 
 Environment-only (no CLI flag): `DOCKER_NETWORK` (Docker network to watch, default `traefik`), `VITE_DEV_URL` (dashboard dev-proxy target for HMR), `HOST_GATEWAY_IP` (override host-gateway auto-detection).
 

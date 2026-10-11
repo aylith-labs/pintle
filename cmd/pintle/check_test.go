@@ -29,7 +29,9 @@ func TestCheckRoutesCLI(t *testing.T) {
 		{"invalid HTTP port", "routes:\n  - host: app.lvh.me\n    target: http://127.0.0.1:70000\n", "invalid HTTP target port", false, true},
 		{"valid TCP and passthrough", "tcp:\n  - host: db.lvh.me\n    target: 5432\n    listen: 15432\npassthrough:\n  - domain: old.test\n    target: traefik\n", "1 TCP route(s), 1 passthrough domain(s)", true, false},
 		{"invalid TCP destination", "tcp:\n  - host: db.lvh.me\n    target: localhost:bad\n    listen: 15432\n", "invalid TCP destination", false, false},
-		{"unsupported passthrough destination", "passthrough:\n  - domain: old.test\n    target: caddy\n", "only traefik is supported", false, false},
+		{"unsupported passthrough destination", "passthrough:\n  - domain: old.test\n    target: caddy\n", "use traefik or host:port", false, false},
+		{"explicit passthrough endpoint", "passthrough:\n  - domain: old.test\n    target: 127.0.0.1:8443\n", "1 passthrough domain(s)", true, false},
+		{"invalid passthrough port", "passthrough:\n  - domain: old.test\n    target: 127.0.0.1:0\n", "use traefik or host:port", false, false},
 		{"static-only excludes TCP", "tcp:\n  - host: db.lvh.me\n    target: 5432\n    listen: 15432\n", "--static-only forbids TCP routes", false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
