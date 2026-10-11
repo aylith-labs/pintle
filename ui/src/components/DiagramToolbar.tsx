@@ -188,7 +188,7 @@ export function DiagramToolbar({
 			</div>
 
 			<div className="flex items-center gap-1.5">
-				<Label>Health</Label>
+				<Label>Request results</Label>
 				<div className="flex items-center gap-1.5">
 					{HEALTH_STATES.map((health) => (
 						<FilterChip

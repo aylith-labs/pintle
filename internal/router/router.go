@@ -1,16 +1,19 @@
 package router
 
 import (
+	"context"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/aylith-labs/pintle/internal/logger"
 	"github.com/aylith-labs/pintle/internal/provider"
 )
 
 type ResolveResult struct {
+	Unavailable   bool
 	Target        string
 	RewrittenPath string
 	Route         provider.Route
@@ -24,14 +27,26 @@ type regexRoute struct {
 }
 
 type Router struct {
-	mu          sync.RWMutex
-	routes      map[string][]provider.Route
-	regexRoutes []regexRoute
+	mu               sync.RWMutex
+	routes           map[string][]provider.Route
+	regexRoutes      []regexRoute
+	pools            map[string]*atomic.Uint64
+	health           map[string]*healthState
+	healthContext    context.Context
+	healthCancel     context.CancelFunc
+	healthParent     context.Context
+	healthRunning    bool
+	healthGeneration uint64
+	healthWake       chan struct{}
 }
 
 func New() *Router {
 	return &Router{
-		routes: make(map[string][]provider.Route),
+		routes:       make(map[string][]provider.Route),
+		pools:        make(map[string]*atomic.Uint64),
+		health:       make(map[string]*healthState),
+		healthParent: context.Background(),
+		healthWake:   make(chan struct{}, 1),
 	}
 }
 
@@ -80,6 +95,10 @@ func (r *Router) Update(routes []provider.Route) {
 	regexIndex := make(map[string]int) // pattern -> index in nextRegex
 
 	for _, route := range routes {
+		if route.Health != nil {
+			copied := *route.Health
+			route.Health = &copied
+		}
 		if route.IsRegexp {
 			idx, ok := regexIndex[route.Hostname]
 			if !ok {
@@ -100,7 +119,7 @@ func (r *Router) Update(routes []provider.Route) {
 
 	// Sort by path specificity (longest first) so exact prefixes win.
 	byPathDesc := func(routes []provider.Route) {
-		sort.Slice(routes, func(i, j int) bool {
+		sort.SliceStable(routes, func(i, j int) bool {
 			return len(routes[i].Path) > len(routes[j].Path)
 		})
 	}
@@ -133,8 +152,15 @@ func (r *Router) Update(routes []provider.Route) {
 		}
 	}
 
+	r.pools = make(map[string]*atomic.Uint64)
+	for _, route := range routes {
+		if route.BackendPool != "" {
+			r.pools[route.Hostname+"\x00"+route.BackendPool] = &atomic.Uint64{}
+		}
+	}
 	r.routes = next
 	r.regexRoutes = nextRegex
+	r.resetHealthLocked()
 }
 
 func (r *Router) Resolve(hostname, path string) *ResolveResult {
@@ -142,12 +168,12 @@ func (r *Router) Resolve(hostname, path string) *ResolveResult {
 	defer r.mu.RUnlock()
 
 	// Exact-host routes take precedence over regex routes.
-	if result := matchRoutes(r.routes[hostname], path); result != nil {
+	if result := r.matchPool(r.routes[hostname], path); result != nil {
 		return result
 	}
 	for _, rr := range r.regexRoutes {
 		if rr.re.MatchString(hostname) {
-			if result := matchRoutes(rr.routes, path); result != nil {
+			if result := r.matchPool(rr.routes, path); result != nil {
 				return result
 			}
 		}
@@ -175,4 +201,34 @@ func matchRoutes(routes []provider.Route, path string) *ResolveResult {
 		}
 	}
 	return nil
+}
+
+// Each admitted request selects exactly one backend. Failures never replay a request.
+func (r *Router) matchPool(routes []provider.Route, path string) *ResolveResult {
+	result := matchRoutes(routes, path)
+	if result == nil || result.Route.BackendPool == "" {
+		return result
+	}
+	var members []provider.Route
+	for _, route := range routes {
+		if route.Hostname == result.Route.Hostname && route.BackendPool == result.Route.BackendPool && route.Path == result.Route.Path && route.StripPath == result.Route.StripPath && route.H2C == result.Route.H2C {
+			if route.Health != nil {
+				state := r.health[healthKey(route)]
+				if state == nil || !state.healthy {
+					continue
+				}
+			}
+			members = append(members, route)
+		}
+	}
+	counter := r.pools[result.Route.Hostname+"\x00"+result.Route.BackendPool]
+	if counter == nil || len(members) == 0 {
+		result.Unavailable = true
+		result.Target = ""
+		return result
+	}
+	selected := members[(counter.Add(1)-1)%uint64(len(members))]
+	result.Target = selected.Target
+	result.Route = selected
+	return result
 }

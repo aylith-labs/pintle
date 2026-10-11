@@ -78,6 +78,7 @@ The Go proxy is faster than direct access due to `http.Transport` connection poo
 mkcert -install
 
 # Generate wildcard certificate (replace lvh.me with your BASE_DOMAIN if customized)
+mkdir -p certs
 mkcert -cert-file certs/lvh.me.pem -key-file certs/lvh.me-key.pem "*.lvh.me"
 
 # Optional: certs for passthrough domains (used as fallback when target proxy is unavailable)
@@ -234,7 +235,35 @@ routes:
 
 Port-only targets resolve to `localhost` (host-native) or `host.docker.internal` (Docker) automatically. On WSL, `host.docker.internal` is rewritten to the WSL → Windows gateway; use the `host.wsl.internal` sentinel to reach a service on the WSL Linux host instead.
 
-Empty or null routes documents are rejected during reload so an editor’s intermediate state cannot clear working routes. Use an explicit `routes: []` collection to deliberately clear routes.
+Empty or null routes documents are rejected during reload so an editor’s intermediate state cannot clear working routes. Use an explicit `routes: []` collection to deliberately clear routes. A routes file with any invalid destination (the same rules as `pintle check`) is rejected as a whole at startup and on reload; the last accepted routes stay active.
+
+### Static replica pools
+
+Use `targets` instead of `target` to round-robin successive requests across one to 32 explicitly configured HTTP backends:
+
+```yaml
+routes:
+  - host: app.lvh.me
+    path: /api
+    strip: true
+    targets: [8000, 8001]
+```
+
+Host headers, query strings and path stripping behave as for a single target. A failed request returns its upstream error and is never replayed against another backend. Reloading replaces the pool. Docker label routes are not pooled.
+
+Add opt-in readiness checks to a `targets` pool:
+
+```yaml
+routes:
+  - host: app.lvh.me
+    targets: ['http://127.0.0.1:8000', 'http://127.0.0.1:8001']
+    health:
+      path: /ready          # read-only GET, origin path without query
+      interval_seconds: 10  # 5–300
+      timeout_seconds: 2    # 1–10, no greater than the interval
+```
+
+Pintle probes only the configured backends, sends the route hostname as `Host`, accepts only 2xx and does not follow redirects. Members start unavailable, join after a successful probe and leave after a failed one. When every member is down, requests get `503` without an upstream attempt. At most 128 host/backend pairs are checked, four at a time. The dashboard's Backend readiness table and `GET /api/backend-health` show each member's Unknown/Ready/Down state; `/api/health` remains process liveness only.
 
 ### Passthrough domains
 
@@ -300,7 +329,7 @@ pintle terminates TLS with mkcert certificates and is intended for local develop
 Not yet implemented:
 
 - Automatic Let's Encrypt / ACME certificates
-- Load balancing across replicas, health checks, circuit breaking
+- Automatic Docker replica pooling and circuit breaking (explicit static replica pools and opt-in HTTP health checks are supported)
 - Rate limiting and auth middleware beyond the label dialects it parses
 
 Those are the roadmap, not the boundary — until they land, a public-facing deployment still wants

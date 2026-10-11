@@ -67,6 +67,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if result.Unavailable {
+		logger.Route(r.Method, hostname, path, "no healthy backend", http.StatusServiceUnavailable)
+		h.stats.Record(stats.RequestRecord{
+			Timestamp: time.Now().UnixMilli(), Method: r.Method, Hostname: hostname,
+			Path: path, Target: "none", Status: http.StatusServiceUnavailable, DurationMs: 0,
+		})
+		http.Error(w, "No healthy backend available", http.StatusServiceUnavailable)
+		return
+	}
 	targetURL, err := url.Parse(result.Target)
 	if err != nil {
 		http.Error(w, "Invalid target URL", http.StatusBadGateway)

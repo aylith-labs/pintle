@@ -3,14 +3,23 @@ package provider
 import "context"
 
 type Route struct {
-	Hostname      string `json:"hostname"`
-	IsRegexp      bool   `json:"isRegexp,omitempty"` // Hostname is a regular expression (Traefik HostRegexp)
-	Path          string `json:"path"`
-	Target        string `json:"target"`
-	StripPath     bool   `json:"stripPath"`
-	H2C           bool   `json:"h2c,omitempty"` // upstream speaks HTTP/2 cleartext (gRPC)
-	Source        string `json:"source"`        // "docker", "static", "traefik", "caddy"
-	ContainerName string `json:"containerName,omitempty"`
+	Hostname      string       `json:"hostname"`
+	IsRegexp      bool         `json:"isRegexp,omitempty"` // Hostname is a regular expression (Traefik HostRegexp)
+	Path          string       `json:"path"`
+	Target        string       `json:"target"`
+	BackendPool   string       `json:"backendPool,omitempty"` // Explicit pool; legacy routes remain single-target.
+	Health        *HealthCheck `json:"health,omitempty"`      // Operator opt-in for static pools.
+	StripPath     bool         `json:"stripPath"`
+	H2C           bool         `json:"h2c,omitempty"` // upstream speaks HTTP/2 cleartext (gRPC)
+	Source        string       `json:"source"`        // "docker", "static", "traefik", "caddy"
+	ContainerName string       `json:"containerName,omitempty"`
+}
+
+// HealthCheck configures a read-only active probe, separate from user requests.
+type HealthCheck struct {
+	Path            string `json:"path" yaml:"path"`
+	IntervalSeconds int    `json:"intervalSeconds" yaml:"interval_seconds"`
+	TimeoutSeconds  int    `json:"timeoutSeconds" yaml:"timeout_seconds"`
 }
 
 type TcpRoute struct {

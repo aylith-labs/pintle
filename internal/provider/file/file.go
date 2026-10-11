@@ -20,11 +20,19 @@ import (
 type staticRouteConfig struct {
 	// Host and Hosts are both accepted and unioned: one service reachable under several names
 	// (stith.lvh.me, stith.localhost, ...) is one route, not one copy per name.
-	Host   string      `yaml:"host"`
-	Hosts  []string    `yaml:"hosts"`
-	Target interface{} `yaml:"target"` // string or int
-	Path   string      `yaml:"path"`
-	Strip  bool        `yaml:"strip"`
+	Host    string              `yaml:"host"`
+	Hosts   []string            `yaml:"hosts"`
+	Target  interface{}         `yaml:"target"`  // string or int
+	Targets []interface{}       `yaml:"targets"` // explicit replica pool, mutually exclusive with target
+	Path    string              `yaml:"path"`
+	Strip   bool                `yaml:"strip"`
+	Health  *staticHealthConfig `yaml:"health"`
+}
+
+type staticHealthConfig struct {
+	Path     string      `yaml:"path"`
+	Interval interface{} `yaml:"interval_seconds"`
+	Timeout  interface{} `yaml:"timeout_seconds"`
 }
 
 // hostnames returns every name this route answers to, deduplicated and in declaration order.
@@ -138,8 +146,13 @@ func (f *FileProvider) resolveTcpTarget(target interface{}) (string, int) {
 	}
 }
 
+// loadFile applies the same destination checks as `pintle check`, so an invalid
+// reload is rejected as a whole and the last accepted routes stay active.
 func (f *FileProvider) loadFile() provider.Message {
-	msg, _ := f.loadFileParsed()
+	msg, err := f.Check()
+	if err != nil {
+		msg.Err = err
+	}
 	return msg
 }
 
@@ -192,23 +205,85 @@ func (f *FileProvider) loadFileParsed() (provider.Message, routesFile) {
 		return msg, routesFile{}
 	}
 
-	for _, r := range parsed.Routes {
+	for index, r := range parsed.Routes {
+		var health *provider.HealthCheck
+		if r.Health != nil {
+			interval, intervalOK := r.Health.Interval.(int)
+			timeout, timeoutOK := r.Health.Timeout.(int)
+			h := &provider.HealthCheck{Path: r.Health.Path, IntervalSeconds: interval, TimeoutSeconds: timeout}
+			u, err := url.ParseRequestURI(h.Path)
+			if !intervalOK || !timeoutOK || r.Targets == nil || err != nil || u == nil || !strings.HasPrefix(h.Path, "/") || strings.HasPrefix(h.Path, "//") || strings.ContainsAny(h.Path, "?#\r\n") || len(h.Path) > 256 || u.RawQuery != "" || u.Fragment != "" || u.Host != "" || h.IntervalSeconds < 5 || h.IntervalSeconds > 300 || h.TimeoutSeconds < 1 || h.TimeoutSeconds > 10 || h.TimeoutSeconds > h.IntervalSeconds {
+				msg.Err = fmt.Errorf("route %d health requires targets, an origin path, interval_seconds 5..300 and timeout_seconds 1..10 no greater than interval", index+1)
+				return msg, routesFile{}
+			}
+			health = h
+		}
 		path := r.Path
 		if path == "" {
 			path = "/"
 		}
-		target := f.resolveTarget(r.Target)
-		for _, hostname := range r.hostnames() {
-			msg.Routes = append(msg.Routes, provider.Route{
-				Hostname:  hostname,
-				Path:      path,
-				Target:    target,
-				StripPath: r.Strip,
-				Source:    "static",
-			})
+		values := []interface{}{r.Target}
+		pool := ""
+		if r.Targets != nil {
+			if r.Target != nil || len(r.Targets) < 1 || len(r.Targets) > 32 {
+				msg.Err = fmt.Errorf("route %d requires either target or 1..32 targets", index+1)
+				return msg, routesFile{}
+			}
+			values = r.Targets
+			pool = fmt.Sprintf("static:%d", index)
+		}
+		seen := make(map[string]bool)
+		for _, value := range values {
+			if pool != "" {
+				switch value.(type) {
+				case int, string:
+				default:
+					msg.Err = fmt.Errorf("route %d replica targets must be integer ports or URL strings", index+1)
+					return msg, routesFile{}
+				}
+			}
+			target := f.resolveTarget(value)
+			u, err := url.Parse(target)
+			if err != nil || u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
+				msg.Err = fmt.Errorf("route %d has an invalid HTTP target", index+1)
+				return msg, routesFile{}
+			}
+			if port := u.Port(); port != "" {
+				n, err := strconv.Atoi(port)
+				if err != nil || n < 1 || n > 65535 {
+					msg.Err = fmt.Errorf("route %d has an invalid target port", index+1)
+					return msg, routesFile{}
+				}
+			}
+			if seen[target] {
+				msg.Err = fmt.Errorf("route %d has duplicate replica targets", index+1)
+				return msg, routesFile{}
+			}
+			seen[target] = true
+			for _, hostname := range r.hostnames() {
+				msg.Routes = append(msg.Routes, provider.Route{
+					Hostname:    hostname,
+					Path:        path,
+					Target:      target,
+					BackendPool: pool,
+					Health:      health,
+					StripPath:   r.Strip,
+					Source:      "static",
+				})
+			}
+		}
+
+	}
+	checked := 0
+	for _, route := range msg.Routes {
+		if route.Health != nil {
+			checked++
 		}
 	}
-
+	if checked > 128 {
+		msg.Err = fmt.Errorf("health probes are limited to 128 configured host/backend pairs")
+		return msg, routesFile{}
+	}
 	msg.Passthrough = parsed.Passthrough
 	msg.Expected = parsed.Expect
 

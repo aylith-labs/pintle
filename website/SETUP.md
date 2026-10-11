@@ -42,7 +42,8 @@ TCP database routing and host-native port redirection. Docker daemon access is p
 port redirection requires administrator access. Do not run those modes merely to try this archive.
 https://github.com/aylith-labs/pintle#setup
 
-The CLI includes `./pintle --help` and `./pintle doctor`.
+The CLI includes `./pintle --help`, `./pintle doctor` and `./pintle check` (offline routes file check).
 Do not expose a local-development dashboard as an authenticated public management service.
-Public certificate automation, replica load balancing, health checks, rate limiting and auth
-middleware are not supplied. License originals/build provenance are alongside the binary.
+Static routes can round-robin across explicit replica pools with opt-in readiness checks.
+Public certificate automation, Docker replica pooling, rate limiting and auth middleware are
+not supplied. License originals/build provenance are alongside the binary.

@@ -23,6 +23,7 @@ export type ProxyStaticRoute = {
 export type RuntimeMode = 'docker' | 'host-native';
 
 export type ProxyTopology = {
+	backendHealth?: BackendHealthSnapshot;
 	mode: RuntimeMode;
 	sniRouter: { port: number; listenPort: number } | null;
 	httpsServer: { port: number };
@@ -35,6 +36,21 @@ export type ProxyTopology = {
 	routes: ProxyRoute[] | null;
 	containers: ProxyContainer[] | null;
 	staticRoutes: ProxyStaticRoute[] | null;
+};
+
+export type BackendHealthSnapshot = {
+	generation: number;
+	running: boolean;
+	receivedAtMs?: number;
+	backends: {
+		hostname: string;
+		pool: string;
+		path: string;
+		targetOrigin: string;
+		state: 'unknown' | 'ready' | 'down';
+		lastCheckAgeMs: number | null;
+		ageCapped: boolean;
+	}[];
 };
 
 export type RouteStats = {

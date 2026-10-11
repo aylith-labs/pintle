@@ -37,7 +37,11 @@ export function ServiceNode({ data }: NodeProps) {
 		>
 			<Handle type="target" position={Position.Left} className="!bg-indigo-500 !w-2 !h-2 !border-0" />
 			<div className="flex items-center gap-2">
-				<div className={`rounded-full ${healthColor} shrink-0`} style={{ width: 8 * scale, height: 8 * scale }} />
+				<div
+					title="Recorded request results, not active readiness"
+					className={`rounded-full ${healthColor} shrink-0`}
+					style={{ width: 8 * scale, height: 8 * scale }}
+				/>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center" style={{ gap: 6 * scale }}>
 						<a

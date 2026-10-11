@@ -64,6 +64,9 @@ func run(cfg *config.Config, startedAt time.Time) error {
 	tlsManager := tlsmgr.NewManager()
 	statsCollector := stats.NewCollector(cfg.DashboardHost)
 	rtr := router.New()
+	healthDone := make(chan struct{})
+	go func() { defer close(healthDone); rtr.RunHealth(ctx, nil) }()
+	defer func() { cancel(); <-healthDone }()
 	dockerProv := docker.New(cfg.DockerNetwork)
 
 	// Configuration pipeline

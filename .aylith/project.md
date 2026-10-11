@@ -6,6 +6,7 @@ category: developer-tools
 features:
   - Docker route discovery from Pintle, Traefik and Caddy labels
   - File-defined routes, SNI passthrough and TLS termination for local services
+  - Static replica pools with opt-in readiness checks
   - Embedded dashboard and runtime self-description for local route inspection
   - Offline routes file destination check before starting the proxy
 targetUser: Developers running several local services behind HTTPS domains

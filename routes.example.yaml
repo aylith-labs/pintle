@@ -31,3 +31,17 @@ tcp: []
   # - host: db.lvh.me
   #   target: 5432
   #   listen: 5432
+
+# Explicit replica pool (choose target OR targets for a route):
+# - host: app.lvh.me
+#   path: /api
+#   strip: true
+#   targets: [8000, 8001]
+
+# Optional read-only readiness checks for an explicit static targets pool:
+# - host: app.lvh.me
+#   targets: [8000, 8001]
+#   health:
+#     path: /ready
+#     interval_seconds: 10
+#     timeout_seconds: 2

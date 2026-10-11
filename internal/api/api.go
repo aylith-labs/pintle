@@ -88,6 +88,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleSelf(w, r)
 	case "/api/health":
 		jsonResponse(w, map[string]string{"status": "ok"}, http.StatusOK)
+	case "/api/backend-health":
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		h.router.WriteHealth(w)
 	default:
 		// Not an API request — return false to allow dashboard serving
 		http.NotFound(w, r)
@@ -96,7 +103,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) IsAPIRequest(path string) bool {
 	switch path {
-	case "/api/topology", "/api/stats", "/api/requests", "/api/health", "/api/self":
+	case "/api/topology", "/api/stats", "/api/requests", "/api/health", "/api/backend-health", "/api/self":
 		return true
 	}
 	return false
@@ -164,10 +171,11 @@ func (h *Handler) handleTopology(w http.ResponseWriter, r *http.Request) {
 	}
 
 	topo := map[string]interface{}{
-		"mode":         mode,
-		"sniRouter":    sniTopology(h.rt),
-		"httpsServer":  map[string]int{"port": h.rt.HTTPSPort},
-		"httpRedirect": map[string]int{"port": h.cfg.HTTPPort, "redirectPort": redirectPort},
+		"backendHealth": h.router.SnapshotHealth(),
+		"mode":          mode,
+		"sniRouter":     sniTopology(h.rt),
+		"httpsServer":   map[string]int{"port": h.rt.HTTPSPort},
+		"httpRedirect":  map[string]int{"port": h.cfg.HTTPPort, "redirectPort": redirectPort},
 		"traefik": map[string]interface{}{
 			"ip":      traefikIPPtr,
 			"port":    traefikPort,
