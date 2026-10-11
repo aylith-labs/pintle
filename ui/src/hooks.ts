@@ -1,37 +1,40 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchRequests, fetchStats, fetchTopology } from './api';
+import { createPollingResource, type PollingState } from './polling';
 import type { ProxyRequest, ProxyStats, ProxyTopology } from './types';
 
-function usePolling<T>(fetcher: () => Promise<T>, intervalMs: number): { data: T | null; isLoading: boolean } {
-	const [data, setData] = useState<T | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+function usePolling<T>(
+	fetcher: (signal: AbortSignal) => Promise<T>,
+	intervalMs: number,
+): PollingState<T> & { retry: () => void } {
+	const [state, setState] = useState<PollingState<T>>({
+		data: null,
+		isLoading: true,
+		isRefreshing: false,
+		error: null,
+	});
 	const fetcherRef = useRef(fetcher);
+	const resourceRef = useRef<ReturnType<typeof createPollingResource<T>> | null>(null);
 	fetcherRef.current = fetcher;
 
 	useEffect(() => {
-		let active = true;
-
-		async function poll() {
-			try {
-				const result = await fetcherRef.current();
-				if (active) {
-					setData(result);
-					setIsLoading(false);
-				}
-			} catch {
-				// Silently retry on next interval
-			}
-		}
-
-		poll();
-		const id = setInterval(poll, intervalMs);
+		const resource = createPollingResource((signal) => fetcherRef.current(signal), setState);
+		resourceRef.current = resource;
+		void resource.poll();
+		const id = setInterval(() => {
+			void resource.poll();
+		}, intervalMs);
 		return () => {
-			active = false;
 			clearInterval(id);
+			resource.dispose();
+			if (resourceRef.current === resource) resourceRef.current = null;
 		};
 	}, [intervalMs]);
 
-	return { data, isLoading };
+	const retry = useCallback(() => {
+		void resourceRef.current?.retry();
+	}, []);
+	return { ...state, retry };
 }
 
 export function useTopology() {
@@ -43,11 +46,11 @@ export function useStats() {
 }
 
 export function useRequests() {
-	return usePolling<ProxyRequest[]>(() => fetchRequests(100), 2_000);
+	return usePolling<ProxyRequest[]>((signal) => fetchRequests(100, signal), 2_000);
 }
 
 export function useActivityRequests() {
-	return usePolling<ProxyRequest[]>(() => fetchRequests(1000), 2_000);
+	return usePolling<ProxyRequest[]>((signal) => fetchRequests(1000, signal), 2_000);
 }
 
 type Theme = 'system' | 'light' | 'dark';

@@ -39,6 +39,7 @@ jobs:
           cd ui
           bun install --frozen-lockfile
           bun run build
+          bun test
           cd ..
           mkdir -p internal/api/ui
           cp -a ui/dist internal/api/ui/dist

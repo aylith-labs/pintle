@@ -249,7 +249,7 @@ function TimeFormatToggle({ value, onChange }: { value: TimeFormat; onChange: (v
 }
 
 export function ActivityPage({ topology, stats }: ActivityPageProps) {
-	const { data: requests } = useActivityRequests();
+	const { data: requests, isLoading, error, retry } = useActivityRequests();
 	const [filters, setFilters] = useState<ActivityFilters>(defaultFilters);
 	const [timeFormat, setTimeFormat] = useState<TimeFormat>('absolute');
 	const [sort, setSort] = useState<SortState>({ key: 'time', dir: 'desc' });
@@ -287,13 +287,37 @@ export function ActivityPage({ topology, stats }: ActivityPageProps) {
 		<div className="flex flex-col gap-3 h-full">
 			<StatsBar topology={topology} stats={stats} />
 			<FilterBar filters={filters} onFiltersChange={setFilters} hosts={uniqueHosts} />
-			<VirtualRequestTable
-				requests={filteredRequests}
-				timeFormat={timeFormat}
-				onTimeFormatChange={setTimeFormat}
-				sort={sort}
-				onSortChange={handleSort}
-			/>
+			{error && (
+				<div
+					role="alert"
+					className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+				>
+					<span>
+						{requests === null
+							? 'Request activity could not load.'
+							: 'Request activity could not refresh. Showing the last known requests.'}
+					</span>
+					<button type="button" onClick={retry} className="min-h-11 font-semibold underline">
+						Retry activity
+					</button>
+				</div>
+			)}
+			{isLoading ? (
+				<div
+					role="status"
+					className="flex-1 rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+				>
+					Loading request activity…
+				</div>
+			) : requests === null ? null : (
+				<VirtualRequestTable
+					requests={filteredRequests}
+					timeFormat={timeFormat}
+					onTimeFormatChange={setTimeFormat}
+					sort={sort}
+					onSortChange={handleSort}
+				/>
+			)}
 		</div>
 	);
 }

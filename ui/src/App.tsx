@@ -44,7 +44,7 @@ const navItems: { page: Page; label: string; icon: typeof ChartLine }[] = [
 ];
 
 export function App() {
-	const { data: topology, isLoading: topoLoading } = useTopology();
+	const { data: topology, isLoading: topoLoading, error: topologyError, retry: retryTopology } = useTopology();
 	const { data: stats } = useStats();
 	const { theme, setTheme } = useTheme();
 	const { size: fontSize, setSize: setFontSize, sizes: fontSizes, scale: fontScale } = useFontSize();
@@ -54,6 +54,28 @@ export function App() {
 		return (
 			<div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center">
 				<div className="text-sm text-gray-400 dark:text-zinc-500 font-mono animate-pulse">Loading proxy data...</div>
+			</div>
+		);
+	}
+	if (!topology) {
+		return (
+			<div className="min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center p-6 text-gray-900 dark:text-zinc-100">
+				<div
+					role="alert"
+					className="max-w-md rounded-xl border border-gray-200 bg-white p-6 text-center dark:border-zinc-800 dark:bg-zinc-900"
+				>
+					<h1 className="text-lg font-semibold">Proxy data is unavailable</h1>
+					<p className="mt-2 text-sm text-gray-600 dark:text-zinc-300">
+						{topologyError ?? 'The dashboard could not load its route data.'}
+					</p>
+					<button
+						type="button"
+						onClick={retryTopology}
+						className="mt-4 min-h-11 rounded-lg bg-indigo-600 px-5 font-medium text-white hover:bg-indigo-700"
+					>
+						Retry connection
+					</button>
+				</div>
 			</div>
 		);
 	}
@@ -105,6 +127,17 @@ export function App() {
 
 			{/* Content */}
 			<main className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3">
+				{topologyError && (
+					<div
+						role="alert"
+						className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+					>
+						<span>Route data could not refresh. Showing the last known routes.</span>
+						<button type="button" onClick={retryTopology} className="min-h-11 font-semibold underline">
+							Retry connection
+						</button>
+					</div>
+				)}
 				{page === 'dashboard' && <DashboardPage topology={topology} stats={stats} scale={fontScale} />}
 				{page === 'activity' && <ActivityPage topology={topology} stats={stats} />}
 				{page === 'architecture' && <ArchitecturePage mode={topology?.mode ?? null} />}

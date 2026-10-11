@@ -20,6 +20,7 @@ build-only:
 
 test:
 	$(GO) test ./...
+	cd ui && bun test
 
 lint:
 	$(GO) vet ./...

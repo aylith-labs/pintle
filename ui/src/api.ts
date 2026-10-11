@@ -1,19 +1,21 @@
 import type { ProxyRequest, ProxyStats, ProxyTopology } from './types';
 
-export async function fetchTopology(): Promise<ProxyTopology> {
-	const res = await fetch('/api/topology');
-	if (!res.ok) throw new Error('Could not refresh proxy topology.');
-	const data: ProxyTopology = await res.json();
+async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+	const res = await fetch(path, { signal });
+	if (!res.ok) throw new Error(`Proxy API request failed (${res.status})`);
+	return res.json() as Promise<T>;
+}
+
+export async function fetchTopology(signal?: AbortSignal): Promise<ProxyTopology> {
+	const data = await getJson<ProxyTopology>('/api/topology', signal);
 	if (data.backendHealth) data.backendHealth.receivedAtMs = Date.now();
 	return data;
 }
 
-export async function fetchStats(): Promise<ProxyStats> {
-	const res = await fetch('/api/stats');
-	return res.json();
+export function fetchStats(signal?: AbortSignal): Promise<ProxyStats> {
+	return getJson('/api/stats', signal);
 }
 
-export async function fetchRequests(limit = 50): Promise<ProxyRequest[]> {
-	const res = await fetch(`/api/requests?limit=${limit}`);
-	return res.json();
+export function fetchRequests(limit = 50, signal?: AbortSignal): Promise<ProxyRequest[]> {
+	return getJson(`/api/requests?limit=${limit}`, signal);
 }
