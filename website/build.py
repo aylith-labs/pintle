@@ -49,6 +49,7 @@ with archive.open('wb') as raw,gzip.GzipFile(filename='',mode='wb',fileobj=raw,m
 sha=hashlib.sha256(archive.read_bytes()).hexdigest();(downloads/(archive.name+'.sha256')).write_text(sha+'  '+archive.name+'\n')
 assets=out/'assets';assets.mkdir()
 for n in ['site.css','site.js']:shutil.copy(ROOT/'website'/n,assets/n)
+for n in ['favicon.svg','favicon.ico']:shutil.copy(ROOT/'website'/n,out/n)
 s=(ROOT/'website/index.html').read_text();origin='https://pintle.aylith.com' if not base else 'https://aylith-labs.github.io'
 for k,v in {'BASE':base,'ORIGIN':origin,'SHA':sha}.items():s=s.replace('@@'+k+'@@',html.escape(v,quote=True))
 for n in ['site.css','site.js']:s=s.replace('/assets/'+n,'/assets/'+n+'?v='+hashlib.sha256((assets/n).read_bytes()).hexdigest()[:12])
