@@ -16,7 +16,9 @@ the labels they already carry. SNI passthrough forwards any domain it should not
 - Dashboard at `pintle.${BASE_DOMAIN}` (embedded in production, Vite HMR in dev)
 - Docker auto-discovery via `pintle.*`, `traefik.*`, and `caddy*` labels (priority: pintle > Traefik > Caddy)
 - Traefik container IP auto-discovered via Docker API
-- Static routes in `routes.yaml` (equivalent to Traefik's file provider)
+- Static routes in `routes.yaml` (equivalent to Traefik's file provider); a route may list `targets`
+  for a round-robin replica pool with opt-in read-only health probes
+- `pintle check` validates a routes file offline; the same rules reject an invalid reload as a whole
 - WebSocket proxying (Vite HMR)
 - TCP service routing (Redis, PostgreSQL, MySQL) with TLS termination
 - `--static-only` binds HTTP/HTTPS to one loopback IP and runs the file provider alone —
@@ -88,7 +90,8 @@ not the upstream's bind address. Regression covered by
 - `internal/config/config.go` — `BASE_DOMAIN`, `HOST_ADDRESS`, CLI flags, env vars, routes.yaml auto-discovery
 - `internal/proxy/proxy.go` — HTTP reverse proxy (`httputil.ReverseProxy`)
 - `internal/proxy/websocket.go` — WebSocket upgrade + bidirectional pipe
-- `internal/router/router.go` — Route table (hostname+path → target, RWMutex)
+- `internal/router/router.go` — Route table (hostname+path → target, RWMutex), replica pool selection
+- `internal/router/health.go` — Opt-in replica health probes and `/api/backend-health` snapshot
 - `internal/server/sni.go` — SNI router (TLS ClientHello parsing + TCP passthrough)
 - `internal/server/tcp.go` — TCP service router (Redis, PostgreSQL, MySQL)
 - `internal/server/https.go` — HTTPS server with dynamic TLS cert selection
