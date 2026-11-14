@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -24,22 +22,14 @@ func StartHTTPS(ctx context.Context, port int, hostname string, tlsManager *tlsm
 	}
 
 	addr := net.JoinHostPort(hostname, strconv.Itoa(port))
-	server := &http.Server{
-		Addr:      addr,
-		Handler:   handler,
-		TLSConfig: tlsConfig,
-		ErrorLog:  log.New(io.Discard, "", 0), // suppress TLS handshake errors
-	}
-
-	go func() {
-		<-ctx.Done()
-		server.Close()
-	}()
+	server := newHTTPServer(addr, handler)
+	server.TLSConfig = tlsConfig
 
 	listener, err := tls.Listen("tcp", addr, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("HTTPS listen: %w", err)
 	}
+	shutdownOnDone(ctx, server, shutdownGrace)
 
 	logger.Infof("HTTPS server on %s", addr)
 

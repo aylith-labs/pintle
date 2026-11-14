@@ -45,3 +45,12 @@ tcp: []
 #     path: /ready
 #     interval_seconds: 10
 #     timeout_seconds: 2
+
+# A single target: has no health check. To get a fast 503 while one upstream restarts,
+# write it as a pool of one with a health check:
+# - host: app.lvh.me
+#   targets: [24200]
+#   health:
+#     path: /health
+#     interval_seconds: 5
+#     timeout_seconds: 2

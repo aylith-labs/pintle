@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -107,14 +108,33 @@ func (d *DockerProvider) resolveContainerRoute(info container.Summary, parsed *p
 	return routes
 }
 
-func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client) ([]provider.Route, []provider.TcpRoute) {
+// containerLister is the slice of the Docker client that route discovery needs.
+type containerLister interface {
+	ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
+}
+
+// discoverMessage builds the provider message for one discovery pass. A failed
+// listing yields a message carrying Err and leaves the cached routes alone, so
+// the consumer keeps the last good set instead of replacing it with a partial one.
+func (d *DockerProvider) discoverMessage(ctx context.Context, cli containerLister) provider.Message {
+	routes, tcpRoutes, err := d.discoverRoutes(ctx, cli)
+	if err != nil {
+		return provider.Message{ProviderName: "docker", Err: err}
+	}
+	d.mu.Lock()
+	d.dockerRoutes = routes
+	d.dockerTcpRoutes = tcpRoutes
+	d.mu.Unlock()
+	return provider.Message{ProviderName: "docker", Routes: routes, TcpRoutes: tcpRoutes}
+}
+
+func (d *DockerProvider) discoverRoutes(ctx context.Context, cli containerLister) ([]provider.Route, []provider.TcpRoute, error) {
 	// 1. Discover proxy-labeled containers
 	proxyContainers, err := cli.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("label", "pintle.host")),
 	})
 	if err != nil {
-		logger.Error("Failed to list proxy containers", err)
-		return nil, nil
+		return nil, nil, fmt.Errorf("list proxy containers: %w", err)
 	}
 
 	var routes []provider.Route
@@ -139,8 +159,7 @@ func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client)
 		Filters: filters.NewArgs(filters.Arg("label", "traefik.enable=true")),
 	})
 	if err != nil {
-		logger.Error("Failed to list traefik containers", err)
-		return routes, nil
+		return nil, nil, fmt.Errorf("list traefik containers: %w", err)
 	}
 
 	handledContainers := make(map[string]bool)
@@ -199,8 +218,7 @@ func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client)
 	// 3. Discover caddy-labeled containers
 	allContainers, err := cli.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
-		logger.Error("Failed to list all containers", err)
-		return routes, tcpRoutes
+		return nil, nil, fmt.Errorf("list all containers: %w", err)
 	}
 
 	for _, info := range allContainers {
@@ -261,7 +279,7 @@ func (d *DockerProvider) discoverRoutes(ctx context.Context, cli *client.Client)
 		logger.Infof("Discovered %s route(s)", strings.Join(counts, " + "))
 	}
 
-	return routes, tcpRoutes
+	return routes, tcpRoutes, nil
 }
 
 func (d *DockerProvider) discoverTraefik(ctx context.Context, cli *client.Client) {
@@ -304,22 +322,15 @@ func (d *DockerProvider) Run(ctx context.Context, configCh chan<- provider.Messa
 	defer cli.Close()
 
 	// Initial discovery
-	routes, tcpRoutes := d.discoverRoutes(ctx, cli)
+	msg := d.discoverMessage(ctx, cli)
 	d.discoverTraefik(ctx, cli)
 
-	d.mu.Lock()
-	d.dockerRoutes = routes
-	d.dockerTcpRoutes = tcpRoutes
-	d.mu.Unlock()
-
-	logger.Infof("Discovered %d HTTP + %d TCP Docker route(s) on network '%s'",
-		len(routes), len(tcpRoutes), d.networkName)
-
-	configCh <- provider.Message{
-		ProviderName: "docker",
-		Routes:       routes,
-		TcpRoutes:    tcpRoutes,
+	if msg.Err == nil {
+		logger.Infof("Discovered %d HTTP + %d TCP Docker route(s) on network '%s'",
+			len(msg.Routes), len(msg.TcpRoutes), d.networkName)
 	}
+
+	configCh <- msg
 
 	// Watch for container events
 	d.watchEvents(ctx, cli, configCh)
@@ -364,19 +375,9 @@ func (d *DockerProvider) watchEvents(ctx context.Context, cli *client.Client, co
 					debounceTimer.Stop()
 				}
 				debounceTimer = time.AfterFunc(300*time.Millisecond, func() {
-					routes, tcpRoutes := d.discoverRoutes(ctx, cli)
+					msg := d.discoverMessage(ctx, cli)
 					d.discoverTraefik(ctx, cli)
-
-					d.mu.Lock()
-					d.dockerRoutes = routes
-					d.dockerTcpRoutes = tcpRoutes
-					d.mu.Unlock()
-
-					configCh <- provider.Message{
-						ProviderName: "docker",
-						Routes:       routes,
-						TcpRoutes:    tcpRoutes,
-					}
+					configCh <- msg
 				})
 			case err, ok := <-errCh:
 				if !ok {

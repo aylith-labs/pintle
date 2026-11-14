@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -353,26 +354,34 @@ func validPassthroughTarget(target string) bool {
 }
 
 func (f *FileProvider) Run(ctx context.Context, configCh chan<- provider.Message) error {
-	// Initial load
-	msg := f.loadFile()
-	logger.Infof("Loaded %d static route(s), %d TCP route(s), %d passthrough domain(s), %d expected host(s)",
-		len(msg.Routes), len(msg.TcpRoutes), len(msg.Passthrough), len(msg.Expected))
-	configCh <- msg
+	loadInitial := func() {
+		msg := f.loadFile()
+		logger.Infof("Loaded %d static route(s), %d TCP route(s), %d passthrough domain(s), %d expected host(s)",
+			len(msg.Routes), len(msg.TcpRoutes), len(msg.Passthrough), len(msg.Expected))
+		configCh <- msg
+	}
 
-	// Watch for changes
+	// Arm the watch before the initial load so a save in between is not missed. The
+	// initial message is sent either way: startup waits for it.
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logger.Errorf("Failed to create file watcher: %v", err)
+		loadInitial()
 		<-ctx.Done()
 		return nil
 	}
 	defer watcher.Close()
 
-	if err := watcher.Add(f.filePath); err != nil {
-		logger.Errorf("Failed to watch routes file: %v", err)
+	// Watch the directory, not the file: an atomic save (write a temp file, rename it
+	// over the original) replaces the inode and would drop a watch on the file itself.
+	watchedPath := filepath.Clean(f.filePath)
+	if err := watcher.Add(filepath.Dir(watchedPath)); err != nil {
+		logger.Errorf("Failed to watch routes file directory: %v", err)
+		loadInitial()
 		<-ctx.Done()
 		return nil
 	}
+	loadInitial()
 
 	for {
 		select {
@@ -382,7 +391,14 @@ func (f *FileProvider) Run(ctx context.Context, configCh chan<- provider.Message
 			if !ok {
 				return nil
 			}
-			if event.Op&(fsnotify.Write|fsnotify.Create) != 0 {
+			if filepath.Clean(event.Name) != watchedPath {
+				continue
+			}
+			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 {
+				// A rename away leaves nothing to read; the replacement arrives as a Create.
+				if _, err := os.Stat(watchedPath); err != nil {
+					continue
+				}
 				logger.Info("Routes file changed, reloading...")
 				msg := f.loadFile()
 				configCh <- msg

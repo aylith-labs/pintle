@@ -213,8 +213,10 @@ func (r *Router) matchPool(routes []provider.Route, path string) *ResolveResult 
 	for _, route := range routes {
 		if route.Hostname == result.Route.Hostname && route.BackendPool == result.Route.BackendPool && route.Path == result.Route.Path && route.StripPath == result.Route.StripPath && route.H2C == result.Route.H2C {
 			if route.Health != nil {
+				// A backend never probed is admitted: a fresh start or a new container
+				// must not 503 until its first probe. Only a probe that failed excludes it.
 				state := r.health[healthKey(route)]
-				if state == nil || !state.healthy {
+				if state == nil || (!state.checkedAt.IsZero() && !state.healthy) {
 					continue
 				}
 			}

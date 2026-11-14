@@ -288,6 +288,8 @@ func run(cfg *config.Config, startedAt time.Time) error {
 	// Wait for shutdown
 	<-ctx.Done()
 	logger.Info("Shutting down...")
+	cancel() // a second signal now terminates immediately instead of waiting for the drain
+	server.WaitForShutdown()
 	return nil
 }
 
