@@ -5,15 +5,27 @@ import (
 	"time"
 )
 
+// RequestRecord is one finished request. DurationMs runs until the response completed or failed.
 type RequestRecord struct {
-	Timestamp  int64  `json:"timestamp"`
-	Method     string `json:"method"`
-	Hostname   string `json:"hostname"`
-	Path       string `json:"path"`
-	Target     string `json:"target"`
-	Status     int    `json:"status"`
+	Timestamp  int64   `json:"timestamp"`
+	Method     string  `json:"method"`
+	Hostname   string  `json:"hostname"`
+	Path       string  `json:"path"`
+	Target     string  `json:"target"`
+	Status     int     `json:"status"`
 	DurationMs float64 `json:"durationMs"`
+	Bytes      int64   `json:"bytes"`
+	// Aborted marks a response that ended before it was complete.
+	Aborted bool `json:"aborted,omitempty"`
+	// Unrouted requests are aggregated under UnroutedHost, so arbitrary Host headers cannot grow the maps.
+	Unrouted bool `json:"-"`
 }
+
+// UnroutedHost is the one host and edge key every request that matched no route is counted under.
+const UnroutedHost = "(unrouted)"
+
+// statusClientClosedRequest is a request the client abandoned; it is not an upstream error.
+const statusClientClosedRequest = 499
 
 type RouteStats struct {
 	TotalRequests int     `json:"totalRequests"`
@@ -47,7 +59,7 @@ func updateStats(stats *RouteStats, record RequestRecord) {
 	total := stats.TotalRequests + 1
 	stats.AvgDurationMs = (stats.AvgDurationMs*float64(stats.TotalRequests) + record.DurationMs) / float64(total)
 	stats.TotalRequests = total
-	if record.Status >= 400 {
+	if record.Aborted || (record.Status >= 400 && record.Status != statusClientClosedRequest) {
 		stats.ErrorCount++
 	}
 	stats.LastRequestAt = record.Timestamp
@@ -66,16 +78,18 @@ func (c *Collector) Record(record RequestRecord) {
 		c.buffer = c.buffer[1:]
 	}
 
-	// Host stats
-	hs, ok := c.hostStats[record.Hostname]
+	hostKey := record.Hostname
+	if record.Unrouted {
+		hostKey = UnroutedHost
+	}
+	hs, ok := c.hostStats[hostKey]
 	if !ok {
 		hs = &RouteStats{}
-		c.hostStats[record.Hostname] = hs
+		c.hostStats[hostKey] = hs
 	}
 	updateStats(hs, record)
 
-	// Edge stats
-	edgeKey := record.Hostname + "->" + record.Target
+	edgeKey := hostKey + "->" + record.Target
 	es, ok := c.edgeStats[edgeKey]
 	if !ok {
 		es = &RouteStats{}

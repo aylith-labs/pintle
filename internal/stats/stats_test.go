@@ -120,3 +120,28 @@ func TestTotalRequests(t *testing.T) {
 		t.Errorf("totalRequests = %d, want 3", total)
 	}
 }
+
+func TestErrorCountSkipsClientCancelAndCountsAborts(t *testing.T) {
+	c := NewCollector("pintle.lvh.me")
+	for _, record := range []RequestRecord{
+		{Hostname: "app.lvh.me", Target: "http://localhost:3000", Status: 499},
+		{Hostname: "app.lvh.me", Target: "http://localhost:3000", Status: 200, Aborted: true},
+		{Hostname: "app.lvh.me", Target: "http://localhost:3000", Status: 503},
+		{Hostname: "app.lvh.me", Target: "http://localhost:3000", Status: 200},
+	} {
+		c.Record(record)
+	}
+	if got := c.GetHostStats()["app.lvh.me"]; got.TotalRequests != 4 || got.ErrorCount != 2 {
+		t.Fatalf("total %d errors %d; want 4 total, 2 errors (abort and 503, not the 499)", got.TotalRequests, got.ErrorCount)
+	}
+}
+
+func TestUnroutedHostsDoNotGrowMaps(t *testing.T) {
+	c := NewCollector("pintle.lvh.me")
+	for i := 0; i < 500; i++ {
+		c.Record(RequestRecord{Hostname: "random-" + string(rune('a'+i%26)) + time.Now().String(), Target: "none", Status: 404, Unrouted: true})
+	}
+	if hosts, edges := c.GetHostStats(), c.GetEdgeStats(); len(hosts) != 1 || len(edges) != 1 || hosts[UnroutedHost].TotalRequests != 500 {
+		t.Fatalf("hosts %d edges %d; want one key each holding all 500", len(hosts), len(edges))
+	}
+}
