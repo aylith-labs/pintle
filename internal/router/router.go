@@ -203,7 +203,9 @@ func matchRoutes(routes []provider.Route, path string) *ResolveResult {
 	return nil
 }
 
-// Each admitted request selects exactly one backend. Failures never replay a request.
+// Each admitted request selects exactly one backend. Failures never replay a request; the proxy
+// transport may retry a dial that connected to nothing against the same backend, which still sends
+// the request once.
 func (r *Router) matchPool(routes []provider.Route, path string) *ResolveResult {
 	result := matchRoutes(routes, path)
 	if result == nil || result.Route.BackendPool == "" {
