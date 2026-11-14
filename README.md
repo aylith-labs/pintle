@@ -92,6 +92,8 @@ cp routes.example.yaml ~/.config/pintle/routes.yaml
 make build
 ```
 
+In Docker, compose mounts the folder that holds the routes file (`ROUTES_DIR`, default `~/.config/pintle`) at `/config`, and `ROUTES_FILENAME` (default `routes.yaml`) names the file in it. The folder is mounted rather than the file because an editor saves by writing a new file and renaming it over the old one, and a single-file mount keeps showing the old one until the container is recreated.
+
 Cert filenames must match `certs/${BASE_DOMAIN}.pem` and `certs/${BASE_DOMAIN}-key.pem`. Passthrough domain certs are optional — if missing, pintle logs a warning and skips the fallback TLS entry.
 
 ## Usage
@@ -267,23 +269,23 @@ routes:
 
 Pintle probes only the configured backends, sends the route hostname as `Host`, accepts only 2xx and does not follow redirects. Members start unavailable, join after a successful probe and leave after a failed one; a newly added member is probed immediately, not after a full interval. A member's last result survives reloads that leave its host, path, pool and target and its `health` settings unchanged, so an unrelated route change does not turn a healthy member back into an unknown one. When every member is down, requests get `503` without an upstream attempt. At most 128 host/backend pairs are checked, four at a time. The dashboard's Backend readiness table and `GET /api/backend-health` show each member's Unknown/Ready/Down state; `/api/health` remains process liveness only.
 
-A route with a single `target:` has no pool, no health check and no protection of its own: each request is attempted against the upstream and fails or waits with it. To fail fast while an upstream restarts, write the one upstream as a pool of one:
+A single `target:` takes the same `health:` block and is then a pool of one: while its probe fails, requests get an immediate `503` with `Retry-After` instead of an upstream attempt.
 
 ```yaml
 routes:
   - host: app.lvh.me
-    targets: [24200]        # instead of target: 24200
+    target: 24200
     health:
       path: /health
       interval_seconds: 5
       timeout_seconds: 2
 ```
 
-While the probe is failing, requests get an immediate `503` instead of hanging. There is no automatic circuit breaker for a plain `target:`.
+Without `health:` a single target is never gated. A gate on the only upstream can turn a slow answer into a refusal and nothing else, so it is not switched on by default; the dial retry already carries a request across a restart of up to 5 s, and an upstream whose port is held by its service manager (systemd socket activation) answers every waiting request once it is back.
 
 ### Listener limits and shutdown
 
-Listeners time out slow request headers after 10 s and idle keep-alive connections after 120 s. There is deliberately no overall read or write timeout, because streams, WebSockets and large uploads must not be cut. On SIGINT/SIGTERM the HTTP listeners stop accepting, give in-flight requests up to 10 s to finish, then close what is left; WebSocket and other hijacked connections are not waited for and end with the process. A second signal exits immediately.
+Listeners time out slow request headers after 10 s and idle keep-alive connections after 120 s. There is deliberately no overall read or write timeout, because streams, WebSockets and large uploads must not be cut. On SIGINT/SIGTERM the HTTP listeners stop accepting and give in-flight requests up to 3 s to finish, then close what is left. A response still sending its body after 1 s (an event stream, a long download) is treated as a stream and closed then, so streams never hold the shutdown open; WebSocket and other hijacked connections are not waited for and end with the process. The grace is short on purpose: while it runs no listener accepts, so every site behind the proxy refuses connections, and a container replacement cannot bind the ports until the old process exits. The log names any requests the shutdown is still waiting for. A second signal exits immediately.
 
 ### Passthrough domains
 

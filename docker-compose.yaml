@@ -16,7 +16,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./certs:/certs:ro
-      - ${ROUTES_FILE:-~/.config/pintle/routes.yaml}:/routes.yaml:ro
+      # The folder, not the file: an editor's atomic save replaces the file, and a single-file
+      # mount would keep showing the old one.
+      - ${ROUTES_DIR:-~/.config/pintle}:/config:ro
     networks:
       - traefik
     extra_hosts:
@@ -29,7 +31,7 @@ services:
       - BASE_DOMAIN=${BASE_DOMAIN:-lvh.me}
       - DOCKER_NETWORK=${DOCKER_NETWORK:-traefik}
       - CERTS_DIR=/certs
-      - ROUTES_FILE=/routes.yaml
+      - ROUTES_FILE=/config/${ROUTES_FILENAME:-routes.yaml}
       - VITE_DEV_URL=${VITE_DEV_URL:-}
       # Explicit override for the host address used in static routes.
       # Leave empty to auto-detect from /host-route.

@@ -204,6 +204,9 @@ func run(cfg *config.Config, startedAt time.Time) error {
 		tlsManager.LoadedDomains, getTcpRoutes, agg.GetCurrentPassthrough, agg.GetCurrentExpected)
 	dashboardHandler := api.NewDashboardHandler(cfg.ViteDevURL)
 	proxyHandler := proxy.NewHandler(rtr, statsCollector)
+	streamsStopped := make(chan struct{})
+	defer close(streamsStopped)
+	go proxyHandler.EndStreamsOnDone(ctx, streamsStopped)
 
 	// Main HTTPS handler: dashboard host goes to API/UI, everything else to proxy
 	mainHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

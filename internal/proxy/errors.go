@@ -55,7 +55,7 @@ func classify(r *http.Request, err error) (f failure, clientGone bool) {
 	if r.Context().Err() != nil {
 		return failure{}, true
 	}
-	if isDialError(err) || errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) {
+	if isDialError(err) || isConnectionLost(err) {
 		return failureUnavailable, false
 	}
 	var netErr net.Error
@@ -63,6 +63,29 @@ func classify(r *http.Request, err error) (f failure, clientGone bool) {
 		return failureTimeout, false
 	}
 	return failureBadGateway, false
+}
+
+// Winsock reports a refused, reset or aborted connection with its own codes, which never equal the
+// POSIX values syscall defines on Windows. They are listed on every platform; nowhere else uses them.
+const (
+	wsaECONNABORTED syscall.Errno = 10053
+	wsaECONNRESET   syscall.Errno = 10054
+	wsaECONNREFUSED syscall.Errno = 10061
+)
+
+var connectionLostErrnos = []syscall.Errno{
+	syscall.ECONNREFUSED, syscall.ECONNRESET, syscall.ECONNABORTED, syscall.EPIPE,
+	wsaECONNREFUSED, wsaECONNRESET, wsaECONNABORTED,
+}
+
+// isConnectionLost reports whether err means the upstream refused, reset or dropped the connection.
+func isConnectionLost(err error) bool {
+	for _, errno := range connectionLostErrnos {
+		if errors.Is(err, errno) {
+			return true
+		}
+	}
+	return false
 }
 
 // writeFailure answers in the caller's format and never names the upstream address.

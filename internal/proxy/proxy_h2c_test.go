@@ -1,9 +1,12 @@
 package proxy
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -70,5 +73,50 @@ func TestPlainRouteUsesHTTP1(t *testing.T) {
 	}
 	if protoMajor != 1 {
 		t.Errorf("upstream saw HTTP/%d; expected HTTP/1.1 for a plain route", protoMajor)
+	}
+}
+
+// TestH2CDialRetryReachesUpstreamThatStartsLate: the gRPC path retries a refused dial the same way
+// the HTTP/1 path does, so an h2c upstream that is restarting is reached once it listens.
+func TestH2CDialRetryReachesUpstreamThatStartsLate(t *testing.T) {
+	addr := reserveAddr(t)
+	var protoMajor atomic.Int32
+	upstream := httptest.NewUnstartedServer(h2c.NewHandler(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			protoMajor.Store(int32(r.ProtoMajor))
+			_, _ = w.Write([]byte("ok"))
+		}),
+		&http2.Server{},
+	))
+	t.Cleanup(upstream.Close)
+
+	settings := fastSettings()
+	settings.retryBudget = 5 * time.Second
+	route := routeTo("http://" + addr)
+	route.H2C = true
+	front := frontServer(t, newTestHandler(t, settings, route))
+
+	started := make(chan error, 1)
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		listener, err := net.Listen("tcp", addr)
+		if err == nil {
+			upstream.Listener.Close()
+			upstream.Listener = listener
+			upstream.Start()
+		}
+		started <- err
+	}()
+
+	resp := sendThrough(t, front, http.MethodGet, "/v1/whatever", "", nil)
+	body := readBody(t, resp)
+	if err := <-started; err != nil {
+		t.Skipf("could not rebind the reserved port: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK || body != "ok" {
+		t.Fatalf("status %d body %q; want 200 after the h2c upstream started", resp.StatusCode, body)
+	}
+	if got := protoMajor.Load(); got != 2 {
+		t.Fatalf("upstream saw HTTP/%d; want HTTP/2", got)
 	}
 }

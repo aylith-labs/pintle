@@ -14,7 +14,7 @@ import (
 const (
 	readHeaderTimeout = 10 * time.Second
 	idleTimeout       = 120 * time.Second
-	shutdownGrace     = 10 * time.Second
+	shutdownGrace     = 3 * time.Second // the listener stays closed this long, so every site refuses connections for it
 )
 
 // draining counts HTTP listeners still shutting down; WaitForShutdown blocks on it.

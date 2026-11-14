@@ -24,6 +24,7 @@ type Handler struct {
 	transport    http.RoundTripper
 	h2cTransport http.RoundTripper
 	proxy        *httputil.ReverseProxy
+	streams      *bodyPhase
 }
 
 // requestState is the per-request data the shared ReverseProxy reads and fills in.
@@ -34,6 +35,7 @@ type requestState struct {
 	outPath    string
 	outRawPath string
 	h2c        bool
+	cancel     context.CancelFunc // ends the upstream exchange; a shutdown uses it to close streams
 
 	clientGone     bool        // the client left before a response was written; nothing was sent
 	upstreamFailed atomic.Bool // the upstream response body ended in an error
@@ -56,6 +58,7 @@ func newHandler(r *router.Router, s *stats.Collector, settings transportSettings
 		stats:        s,
 		transport:    &dialRetryTransport{next: newHTTP1Transport(settings), budget: settings.retryBudget},
 		h2cTransport: &dialRetryTransport{next: newH2CTransport(settings), budget: settings.retryBudget},
+		streams:      newBodyPhase(),
 	}
 	h.proxy = &httputil.ReverseProxy{
 		Rewrite:        h.rewrite,
@@ -83,10 +86,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hostname := hostOnly(r.Host)
 	path := r.URL.Path
 	aw := newAccessWriter(w)
-	state := &requestState{hostname: hostname}
+	ctx, cancel := context.WithCancel(r.Context())
+	state := &requestState{hostname: hostname, cancel: cancel}
 	label, unrouted := "", false
 
 	defer func() {
+		cancel()
+		h.streams.leave(state)
 		recovered := recover()
 		h.complete(r, aw, state, label, unrouted, start, recovered != nil)
 		if recovered != nil {
@@ -116,7 +122,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	state.h2c = result.Route.H2C
 	state.outPath, state.outRawPath = rewritePath(r.URL, result.Route.Path, result.RewrittenPath, result.Route.StripPath)
 
-	h.proxy.ServeHTTP(aw, r.WithContext(context.WithValue(r.Context(), stateKey{}, state)))
+	h.streams.begin(state, hostname+path)
+	h.proxy.ServeHTTP(aw, r.WithContext(context.WithValue(ctx, stateKey{}, state)))
 }
 
 // complete logs and records the request once, after the response finished or failed.
@@ -176,6 +183,7 @@ func (h *Handler) modifyResponse(resp *http.Response) error {
 	}
 	if state := stateFrom(resp.Request.Context()); state != nil {
 		resp.Body = &upstreamBody{ReadCloser: resp.Body, failed: &state.upstreamFailed}
+		h.streams.enter(state)
 	}
 	return nil
 }

@@ -35,8 +35,12 @@ func TestHealthConfigurationAdmission(t *testing.T) {
 		}
 	}
 	os.WriteFile(path, []byte("routes:\n - host: app.test\n   target: 8000\n   health: {path: /ready, interval_seconds: 5, timeout_seconds: 1}\n"), 0600)
-	if New(path, "127.0.0.1").loadFile().Err == nil {
-		t.Fatal("legacy health silently enabled")
+	if msg := New(path, "127.0.0.1").loadFile(); msg.Err != nil || len(msg.Routes) != 1 || msg.Routes[0].Health == nil || msg.Routes[0].BackendPool == "" {
+		t.Fatalf("a checked single target must load as a pool of one: %+v", msg)
+	}
+	os.WriteFile(path, []byte("routes:\n - host: app.test\n   target: 8000\n"), 0600)
+	if msg := New(path, "127.0.0.1").loadFile(); msg.Err != nil || len(msg.Routes) != 1 || msg.Routes[0].BackendPool != "" {
+		t.Fatalf("an unchecked single target must stay outside any pool: %+v", msg)
 	}
 	for _, target := range []string{"http://foreign.example:8000", "http://192.0.2.1:8000", "http://localhost:8000", "http://host.docker.internal:8000", "http://host.wsl.internal:8000"} {
 		os.WriteFile(path, []byte("routes:\n - host: app.test\n   targets: ['"+target+"']\n   health: {path: /ready, interval_seconds: 5, timeout_seconds: 1}\n"), 0600)

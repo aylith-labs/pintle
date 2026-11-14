@@ -213,8 +213,8 @@ func (f *FileProvider) loadFileParsed() (provider.Message, routesFile) {
 			timeout, timeoutOK := r.Health.Timeout.(int)
 			h := &provider.HealthCheck{Path: r.Health.Path, IntervalSeconds: interval, TimeoutSeconds: timeout}
 			u, err := url.ParseRequestURI(h.Path)
-			if !intervalOK || !timeoutOK || r.Targets == nil || err != nil || u == nil || !strings.HasPrefix(h.Path, "/") || strings.HasPrefix(h.Path, "//") || strings.ContainsAny(h.Path, "?#\r\n") || len(h.Path) > 256 || u.RawQuery != "" || u.Fragment != "" || u.Host != "" || h.IntervalSeconds < 5 || h.IntervalSeconds > 300 || h.TimeoutSeconds < 1 || h.TimeoutSeconds > 10 || h.TimeoutSeconds > h.IntervalSeconds {
-				msg.Err = fmt.Errorf("route %d health requires targets, an origin path, interval_seconds 5..300 and timeout_seconds 1..10 no greater than interval", index+1)
+			if !intervalOK || !timeoutOK || err != nil || u == nil || !strings.HasPrefix(h.Path, "/") || strings.HasPrefix(h.Path, "//") || strings.ContainsAny(h.Path, "?#\r\n") || len(h.Path) > 256 || u.RawQuery != "" || u.Fragment != "" || u.Host != "" || h.IntervalSeconds < 5 || h.IntervalSeconds > 300 || h.TimeoutSeconds < 1 || h.TimeoutSeconds > 10 || h.TimeoutSeconds > h.IntervalSeconds {
+				msg.Err = fmt.Errorf("route %d health requires an origin path, interval_seconds 5..300 and timeout_seconds 1..10 no greater than interval", index+1)
 				return msg, routesFile{}
 			}
 			health = h
@@ -231,6 +231,9 @@ func (f *FileProvider) loadFileParsed() (provider.Message, routesFile) {
 				return msg, routesFile{}
 			}
 			values = r.Targets
+			pool = fmt.Sprintf("static:%d", index)
+		} else if health != nil {
+			// A checked single target is a pool of one, so the probe gates it like any replica.
 			pool = fmt.Sprintf("static:%d", index)
 		}
 		seen := make(map[string]bool)
