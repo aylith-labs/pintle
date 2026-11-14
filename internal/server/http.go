@@ -12,22 +12,15 @@ import (
 )
 
 func StartHTTPRedirect(ctx context.Context, port int) error {
-	server := &http.Server{
-		Addr: fmt.Sprintf(":%d", port),
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			target := "https://" + r.Host + r.URL.Path
-			if r.URL.RawQuery != "" {
-				target += "?" + r.URL.RawQuery
-			}
-			// Strip port from redirect URL (iptables handles 443 -> LISTEN_PORT)
-			http.Redirect(w, r, target, http.StatusMovedPermanently)
-		}),
-	}
-
-	go func() {
-		<-ctx.Done()
-		server.Close()
-	}()
+	server := newHTTPServer(fmt.Sprintf(":%d", port), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		target := "https://" + r.Host + r.URL.Path
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		// Strip port from redirect URL (iptables handles 443 -> LISTEN_PORT)
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	}))
+	shutdownOnDone(ctx, server, shutdownGrace)
 
 	logger.Infof("HTTP redirect on :%d", port)
 
@@ -53,11 +46,8 @@ func StartLoopbackHTTPRedirect(ctx context.Context, port int, hostname string, h
 	if err != nil {
 		return fmt.Errorf("HTTP redirect listen: %w", err)
 	}
-	server := &http.Server{Addr: addr, Handler: loopbackRedirectHandler(httpsPort)}
-	go func() {
-		<-ctx.Done()
-		server.Close()
-	}()
+	server := newHTTPServer(addr, loopbackRedirectHandler(httpsPort))
+	shutdownOnDone(ctx, server, shutdownGrace)
 	go func() {
 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			logger.Errorf("HTTP redirect server error: %v", err)

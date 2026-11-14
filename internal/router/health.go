@@ -23,17 +23,25 @@ func healthKey(route provider.Route) string {
 	return route.Hostname + "\x00" + route.BackendPool + "\x00" + route.Path + "\x00" + route.Target
 }
 
-// Caller holds the route lock. Every reload invalidates earlier probe results.
+// Caller holds the route lock. A reload cancels in-flight probes but keeps the last
+// observation of a backend whose identity and health settings are unchanged, so an
+// unrelated route change never turns a known-good backend back into an unknown one.
 func (r *Router) resetHealthLocked() {
 	r.healthGeneration++
 	if r.healthCancel != nil {
 		r.healthCancel()
 	}
 	r.healthContext, r.healthCancel = context.WithCancel(r.healthParent)
+	previous := r.health
 	r.health = make(map[string]*healthState)
 	for _, route := range r.flattenLocked() {
 		if route.Health != nil && route.BackendPool != "" && route.Source == "static" {
-			r.health[healthKey(route)] = &healthState{route: route}
+			key := healthKey(route)
+			state := &healthState{route: route}
+			if old := previous[key]; old != nil && old.route.Health != nil && *old.route.Health == *route.Health {
+				state.healthy, state.next, state.checkedAt = old.healthy, old.next, old.checkedAt
+			}
+			r.health[key] = state
 		}
 	}
 	select {

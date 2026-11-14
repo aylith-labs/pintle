@@ -31,13 +31,13 @@ func buildClientHello(hostname string) []byte {
 
 	// ClientHello body: version(2) + random(32) + session_id_len(1) + cipher_suites_len(2) + cipher(2) + compression_len(1) + compression(1) + extensions
 	clientHelloBody := make([]byte, 0, 2+32+1+2+2+1+1+len(extensions))
-	clientHelloBody = append(clientHelloBody, 0x03, 0x03) // TLS 1.2
+	clientHelloBody = append(clientHelloBody, 0x03, 0x03)          // TLS 1.2
 	clientHelloBody = append(clientHelloBody, make([]byte, 32)...) // random
-	clientHelloBody = append(clientHelloBody, 0x00) // session_id_len = 0
-	clientHelloBody = append(clientHelloBody, 0x00, 0x02) // cipher_suites_len = 2
-	clientHelloBody = append(clientHelloBody, 0x00, 0x2f) // TLS_RSA_WITH_AES_128_CBC_SHA
-	clientHelloBody = append(clientHelloBody, 0x01) // compression_methods_len = 1
-	clientHelloBody = append(clientHelloBody, 0x00) // null compression
+	clientHelloBody = append(clientHelloBody, 0x00)                // session_id_len = 0
+	clientHelloBody = append(clientHelloBody, 0x00, 0x02)          // cipher_suites_len = 2
+	clientHelloBody = append(clientHelloBody, 0x00, 0x2f)          // TLS_RSA_WITH_AES_128_CBC_SHA
+	clientHelloBody = append(clientHelloBody, 0x01)                // compression_methods_len = 1
+	clientHelloBody = append(clientHelloBody, 0x00)                // null compression
 	clientHelloBody = append(clientHelloBody, extensions...)
 
 	// Handshake: type(1) + length(3) + ClientHello body
@@ -49,7 +49,7 @@ func buildClientHello(hostname string) []byte {
 
 	// TLS record: type(1) + version(2) + length(2) + handshake
 	record := make([]byte, 0, 5+len(handshake))
-	record = append(record, 0x16) // Handshake
+	record = append(record, 0x16)       // Handshake
 	record = append(record, 0x03, 0x01) // TLS 1.0
 	hsLen := len(handshake)
 	record = append(record, byte(hsLen>>8), byte(hsLen))

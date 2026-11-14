@@ -235,6 +235,8 @@ routes:
 
 Port-only targets resolve to `localhost` (host-native) or `host.docker.internal` (Docker) automatically. On WSL, `host.docker.internal` is rewritten to the WSL → Windows gateway; use the `host.wsl.internal` sentinel to reach a service on the WSL Linux host instead.
 
+The routes file is watched through its directory, so an editor's atomic save (write a temp file, rename it over the original) still reloads, and other files in that directory are ignored. A Docker discovery pass whose container listing fails is rejected like an invalid reload: the last discovered Docker routes stay active.
+
 Empty or null routes documents are rejected during reload so an editor’s intermediate state cannot clear working routes. Use an explicit `routes: []` collection to deliberately clear routes. A routes file with any invalid destination (the same rules as `pintle check`) is rejected as a whole at startup and on reload; the last accepted routes stay active.
 
 ### Static replica pools
@@ -263,7 +265,25 @@ routes:
       timeout_seconds: 2    # 1–10, no greater than the interval
 ```
 
-Pintle probes only the configured backends, sends the route hostname as `Host`, accepts only 2xx and does not follow redirects. Members start unavailable, join after a successful probe and leave after a failed one. When every member is down, requests get `503` without an upstream attempt. At most 128 host/backend pairs are checked, four at a time. The dashboard's Backend readiness table and `GET /api/backend-health` show each member's Unknown/Ready/Down state; `/api/health` remains process liveness only.
+Pintle probes only the configured backends, sends the route hostname as `Host`, accepts only 2xx and does not follow redirects. A member is admitted until its first probe says otherwise, so a reload or an unrelated container start never turns a route into a `503`; a member leaves after a failed probe and rejoins after a successful one. A member's last result survives reloads that leave its host, path, pool and target and its `health` settings unchanged. When every member is down, requests get `503` without an upstream attempt. At most 128 host/backend pairs are checked, four at a time. The dashboard's Backend readiness table and `GET /api/backend-health` show each member's Unknown/Ready/Down state; `/api/health` remains process liveness only.
+
+A route with a single `target:` has no pool, no health check and no protection of its own: each request is attempted against the upstream and fails or waits with it. To fail fast while an upstream restarts, write the one upstream as a pool of one:
+
+```yaml
+routes:
+  - host: app.lvh.me
+    targets: [24200]        # instead of target: 24200
+    health:
+      path: /health
+      interval_seconds: 5
+      timeout_seconds: 2
+```
+
+While the probe is failing, requests get an immediate `503` instead of hanging. There is no automatic circuit breaker for a plain `target:`.
+
+### Listener limits and shutdown
+
+Listeners time out slow request headers after 10 s and idle keep-alive connections after 120 s. There is deliberately no overall read or write timeout, because streams, WebSockets and large uploads must not be cut. On SIGINT/SIGTERM the HTTP listeners stop accepting, give in-flight requests up to 10 s to finish, then close what is left; WebSocket and other hijacked connections are not waited for and end with the process. A second signal exits immediately.
 
 ### Passthrough domains
 
