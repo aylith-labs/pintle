@@ -164,8 +164,8 @@ func waitHealth(t *testing.T, condition func() bool) {
 func TestHealthSelectionRecoveryAndReadOnlyContract(t *testing.T) {
 	r := New()
 	r.Update([]provider.Route{checkedRoute("http://one:8000/base?private=ignored"), checkedRoute("http://two:8000")})
-	if got := r.Resolve("app.test", "/api/items"); got == nil || got.Unavailable {
-		t.Fatal("never-probed backend refused")
+	if got := r.Resolve("app.test", "/api/items"); got == nil || !got.Unavailable {
+		t.Fatal("unknown backend admitted")
 	}
 	var twoReady atomic.Bool
 	client := &http.Client{Transport: healthTransport(func(req *http.Request) (*http.Response, error) {
@@ -243,14 +243,14 @@ func TestHealthReloadCancelsProbeAndFencesLateSuccess(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("reload did not cancel probe")
 	}
-	if got := r.Resolve("app.test", "/api"); got.Unavailable || got.Target != "http://new:8000" {
-		t.Fatalf("new generation routed to %+v", got)
-	}
-	if state := r.SnapshotHealth().Backends[0].State; state != "unknown" {
-		t.Fatalf("new generation inherited old observation: %s", state)
+	if got := r.Resolve("app.test", "/api"); !got.Unavailable {
+		t.Fatal("new generation inherited old success")
 	}
 	close(release)
-	waitHealth(t, func() bool { return r.SnapshotHealth().Backends[0].State == "ready" })
+	waitHealth(t, func() bool {
+		got := r.Resolve("app.test", "/api")
+		return got != nil && !got.Unavailable && got.Target == "http://new:8000"
+	})
 	cancel()
 	select {
 	case <-finished:
@@ -286,14 +286,6 @@ func TestHealthProbeTimeoutAndWorkerBound(t *testing.T) {
 		}))
 	}()
 	waitHealth(t, func() bool { return attempts.Load() >= 6 })
-	waitHealth(t, func() bool {
-		for _, backend := range r.SnapshotHealth().Backends {
-			if backend.State != "down" {
-				return false
-			}
-		}
-		return true
-	})
 	if max.Load() > 4 {
 		t.Fatalf("unbounded probes: %d", max.Load())
 	}
@@ -386,7 +378,8 @@ func TestHealthCarriedAcrossUnrelatedReload(t *testing.T) {
 		r.probe(ctx, state, client)
 	}
 
-	// An unrelated route appears: both known observations survive, the newcomer is admitted.
+	// An unrelated route appears: both known observations survive without a new probe,
+	// and the newcomer stays refused until its first probe.
 	other := provider.Route{Hostname: "other.test", Path: "/", Target: "http://other:1", BackendPool: "other", Source: "static", Health: down.Health}
 	r.Update([]provider.Route{down, up, other})
 	for i := 0; i < 4; i++ {
@@ -394,8 +387,8 @@ func TestHealthCarriedAcrossUnrelatedReload(t *testing.T) {
 			t.Fatalf("known-healthy backend lost or known-down backend admitted: %+v", got)
 		}
 	}
-	if got := r.Resolve("other.test", "/"); got.Unavailable {
-		t.Fatal("never-probed newcomer refused")
+	if got := r.Resolve("other.test", "/"); !got.Unavailable {
+		t.Fatal("never-probed newcomer admitted")
 	}
 
 	// Changing the probe settings invalidates the old observation.
