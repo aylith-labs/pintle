@@ -36,6 +36,10 @@ const (
 	// First wait between dial attempts; it doubles up to dialRetryMaxBackoff.
 	dialRetryInitialBackoff = 50 * time.Millisecond
 	dialRetryMaxBackoff     = 1 * time.Second
+	// Idle upstream connections kept per host. Below the client concurrency, each request past it
+	// opens and closes its own TCP connection, which costs a dial and a TIME_WAIT socket apiece.
+	maxIdleConnsPerHost = 256
+	maxIdleConns        = 1024
 )
 
 // transportSettings are the values tests shorten; production uses defaultTransportSettings.
@@ -56,8 +60,8 @@ func newHTTP1Transport(settings transportSettings) *http.Transport {
 	return &http.Transport{
 		DialContext:           dialer.DialContext,
 		ForceAttemptHTTP2:     true, // a custom dialer disables HTTP/2 to https upstreams unless forced
-		MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   10,
+		MaxIdleConns:          maxIdleConns,
+		MaxIdleConnsPerHost:   maxIdleConnsPerHost,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   tlsHandshakeTimeout,
 		ExpectContinueTimeout: expectContinueTimeout,
